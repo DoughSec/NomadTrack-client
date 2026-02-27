@@ -1,6 +1,14 @@
 import Globe from '../bits/Globe';
+import { useNavigate } from 'react-router-dom';
 
 export default function GetStarted() {
+    const navigate = useNavigate();
+
+    const handleGetStarted = () => {
+        const isAuthenticated = !!localStorage.getItem("token");
+        navigate(isAuthenticated ? "/trips" : "/login");
+    };
+
     return (
         <section className="get-started">
             <div className="get-started-copy">
@@ -13,7 +21,7 @@ export default function GetStarted() {
                 </p>
 
                 <div className="get-started-buttons">
-                    <button className="button">Get Started</button>
+                    <button className="button" onClick={handleGetStarted}>Get Started</button>
                     <button className="button">View Demo</button>
                 </div>
             </div>
@@ -43,4 +51,3 @@ export default function GetStarted() {
         </section>
     );
 }
-
