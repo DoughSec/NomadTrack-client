@@ -22,11 +22,11 @@ export default function GetStarted() {
                 <Globe
                     width={420}
                     height={420}
-                    primaryColor="#ff5f73"
-                    neutralColor="#e74d60"
-                    atmosphereColor="rgba(255, 95, 115, 0.16)"
-                    globeColor="#080808"
-                    globeOpacity={0.4}
+                    primaryColor="#50b9ff"
+                    neutralColor="#9cd9ff"
+                    atmosphereColor="rgba(80, 185, 255, 0.42)"
+                    globeColor="#0f2740"
+                    globeOpacity={0.85}
                     autoRotateSpeed={1.0}
                     enableZoom={false}
                     interactive={true}
@@ -35,7 +35,7 @@ export default function GetStarted() {
                     arcAnimationDuration={2000}
                     cameraAltitude={2.2}
                     landDotRows={250}
-                    pointSize={0.3}
+                    pointSize={0.35}
                     atmosphereAltitude={0.25}
                     className="hero-globe"
                 />
@@ -43,3 +43,4 @@ export default function GetStarted() {
         </section>
     );
 }
+
