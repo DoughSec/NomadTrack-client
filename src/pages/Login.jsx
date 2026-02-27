@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Login(props) {
-    const url = "nomadTrack/auth/login";
+    const url = "http://localhost:8080/nomadTrack/auth/login";
+    const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -20,7 +22,8 @@ export default function Login(props) {
             const data = await response.json();
             if (response.ok) {
                 localStorage.setItem("token", data.token);
-                props.setUser(data.user);
+                props.setUser?.(data.user);
+                navigate("/");
             } else {
                 setError(data.message || "Login failed");
             }
@@ -31,7 +34,7 @@ export default function Login(props) {
 
     return (
         <div className="auth-page">
-            <Header />
+            <Header isAuthenticated={props.isAuthenticated} setIsAuthenticated={props.setIsAuthenticated} />
             <main className="auth-main">
                 <div className="login-container">
                     <h2>Login</h2>
@@ -52,6 +55,9 @@ export default function Login(props) {
                             required
                         />
                         <button type="submit">Login</button>
+                        <p>
+                            Don't have an account? <Link to="/nomadTrack/auth/register"> Register</Link> here
+                        </p>
                     </form>
                 </div>
             </main>
