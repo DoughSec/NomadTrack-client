@@ -1,7 +1,74 @@
-export default function Wishlists() {
-    return (
-        <>
+import { useState } from "react";
+import Header from "../component/Header";
+import Footer from "../component/Footer";
 
-        </>
+const BASE_URL = "http://localhost:8080";
+const normalizeToken = (tokenValue) => {
+    if (!tokenValue || typeof tokenValue !== "string") return "";
+    return tokenValue.replace(/^Bearer\s+/i, "").trim();
+};
+
+export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
+    const [targetCountry, setTargetCountry] = useState("");
+    const [results, setResults] = useState(null);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        const searchValue = targetCountry.trim();
+        if (!searchValue) {
+            setError("Please enter a target country.");
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+        setResults(null);
+
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${BASE_URL}/wishlists/${encodeURIComponent(searchValue)}`, {
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                setError(data.message || "Search failed.");
+            } else {
+                setResults(data);
+            }
+        } catch (err) {
+            setError("An error occurred. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="auth-page">
+            <Header isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
+            <main className="auth-main">
+                <div className="login-container">
+                    <h2 style={{ color: "white" }}>Search Wishlists</h2>
+                    <form onSubmit={handleSearch}>
+                        <input
+                            type="text"
+                            placeholder="Search wishlists by target country"
+                            value={targetCountry}
+                            onChange={(e) => setTargetCountry(e.target.value)}
+                            required
+                        />
+                        <button type="submit">{loading ? "Searching..." : "Search"}</button>
+                    </form>
+                    {error && <p className="error">{error}</p>}
+                    {results && <pre>{JSON.stringify(results, null, 2)}</pre>}
+                </div>
+            </main>
+            <Footer />
+        </div>
     );
 }
