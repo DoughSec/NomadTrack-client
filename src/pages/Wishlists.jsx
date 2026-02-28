@@ -3,6 +3,10 @@ import Header from "../component/Header";
 import Footer from "../component/Footer";
 
 const BASE_URL = "http://localhost:8080";
+const normalizeToken = (tokenValue) => {
+    if (!tokenValue || typeof tokenValue !== "string") return "";
+    return tokenValue.replace(/^Bearer\s+/i, "").trim();
+};
 
 export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
     const [targetCountry, setTargetCountry] = useState("");
@@ -23,11 +27,11 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         setResults(null);
 
         try {
-            const token = localStorage.getItem("token");
+            const authToken = normalizeToken(localStorage.getItem("token"));
             const response = await fetch(`${BASE_URL}/wishlists/${encodeURIComponent(searchValue)}`, {
                 headers: {
                     "Content-Type": "application/json",
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
                 },
             });
 

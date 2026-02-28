@@ -3,6 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
 
+const normalizeToken = (tokenValue) => {
+    if (!tokenValue || typeof tokenValue !== "string") return "";
+    return tokenValue.replace(/^Bearer\s+/i, "").trim();
+};
+
 export default function Register(props) {
     const url = "http://localhost:8080/nomadTrack/auth/register";
     const navigate = useNavigate();
@@ -25,9 +30,13 @@ export default function Register(props) {
             const data = await response.json();
 
             if (response.ok) {
-                if (data.token) {
-                    localStorage.setItem("token", data.token);
+                const token = normalizeToken(data.token || data.accessToken || data.jwt || data.jwtToken);
+                if (!token) {
+                    localStorage.removeItem("token");
+                    setError("Registration succeeded but no token was returned.");
+                    return;
                 }
+                localStorage.setItem("token", token);
                 props.setUser?.(data.user);
                 navigate("/");
             } else {
