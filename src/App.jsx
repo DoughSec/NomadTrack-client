@@ -24,15 +24,15 @@ function App() {
         />
         <Route
           path="/Dashboard"
-          element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <Dashboard isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/trips"
-          element={isAuthenticated ? <Trips /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <Trips isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/wishlists"
-          element={isAuthenticated ? <Wishlists /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <Wishlists isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/login"
