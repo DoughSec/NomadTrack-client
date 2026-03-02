@@ -5,6 +5,7 @@ import BounceCards from "../bits/BounceCards";
 
 const BASE_URL = "http://localhost:8080";
 const TRIPS_BASE_URL = `${BASE_URL}/nomadTrack/trips`;
+const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
     return tokenValue.replace(/^Bearer\s+/i, "").trim();
@@ -31,6 +32,18 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [tripLikeCount, setTripLikeCount] = useState(0);
+    const [tripLikeLoading, setTripLikeLoading] = useState(false);
+    const [tripLikeError, setTripLikeError] = useState("");
+    const [tripComments, setTripComments] = useState([]);
+    const [tripCommentsLoading, setTripCommentsLoading] = useState(false);
+    const [tripCommentsError, setTripCommentsError] = useState("");
+    const [newCommentText, setNewCommentText] = useState("");
+    const [commentSubmitting, setCommentSubmitting] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingCommentText, setEditingCommentText] = useState("");
+    const [commentActionLoadingId, setCommentActionLoadingId] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     const parseApiResponse = async (response) => {
         const rawText = await response.text();
@@ -105,10 +118,253 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         return urls;
     };
 
+    const getTripLikesFromResponse = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.likes)) return data.likes;
+        if (Array.isArray(data?.tripLikes)) return data.tripLikes;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        return [];
+    };
+
+    const getTripLikeCountFromResponse = (data) => {
+        if (typeof data?.likeCount === "number") return data.likeCount;
+        if (typeof data?.likesCount === "number") return data.likesCount;
+        if (typeof data?.totalLikes === "number") return data.totalLikes;
+        return getTripLikesFromResponse(data).length;
+    };
+
+    const extractCommentsFromResponse = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.comments)) return data.comments;
+        if (Array.isArray(data?.tripComments)) return data.tripComments;
+        if (Array.isArray(data?.commentDtos)) return data.commentDtos;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        return [];
+    };
+
+    const mapComment = (comment) => {
+        const fullName =
+            [comment?.firstName, comment?.lastName].filter(Boolean).join(" ") ||
+            [comment?.userFirstName, comment?.userLastName].filter(Boolean).join(" ") ||
+            [comment?.authorFirstName, comment?.authorLastName].filter(Boolean).join(" ") ||
+            [comment?.user?.firstName, comment?.user?.lastName].filter(Boolean).join(" ");
+
+        return {
+            id: comment?.id ?? comment?.commentId ?? comment?.tripCommentId ?? null,
+            userId: comment?.userId ?? comment?.user?.id ?? comment?.authorId ?? comment?.ownerId ?? null,
+            text: comment?.comment ?? comment?.content ?? comment?.text ?? comment?.message ?? "",
+            authorName: fullName || comment?.authorName || comment?.userName || comment?.username || "Unknown User",
+            createdAt: comment?.createdAt ?? comment?.created_at ?? comment?.timestamp ?? "",
+        };
+    };
+
     const formatDate = (value) => {
         if (!value || typeof value !== "string") return "N/A";
         const isoDate = value.includes("T") ? value.split("T")[0] : value;
         return isoDate || "N/A";
+    };
+
+    const normalizeId = (value) => {
+        if (value == null) return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const loadCurrentUser = async () => {
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(AUTH_ME_URL, {
+                headers: {
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+            if (!response.ok) return;
+            setCurrentUserId(normalizeId(data?.id ?? data?.user?.id));
+        } catch {
+            // Keep null user id if request fails.
+        }
+    };
+
+    const loadTripLikesCount = async (tripId) => {
+        if (!tripId) return;
+        setTripLikeLoading(true);
+        setTripLikeError("");
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${TRIPS_BASE_URL}/${encodeURIComponent(tripId)}/likes`, {
+                headers: {
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripLikeError(data.message || "Could not load likes.");
+                setTripLikeCount(0);
+                return;
+            }
+            setTripLikeCount(getTripLikeCountFromResponse(data));
+        } catch {
+            setTripLikeError("An error occurred while loading likes.");
+            setTripLikeCount(0);
+        } finally {
+            setTripLikeLoading(false);
+        }
+    };
+
+    const loadTripComments = async (tripId) => {
+        if (!tripId) return;
+        setTripCommentsLoading(true);
+        setTripCommentsError("");
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${TRIPS_BASE_URL}/${encodeURIComponent(tripId)}/comments`, {
+                headers: {
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripCommentsError(data.message || "Could not load comments.");
+                setTripComments([]);
+                return;
+            }
+            setTripComments(extractCommentsFromResponse(data).map(mapComment));
+        } catch {
+            setTripCommentsError("An error occurred while loading comments.");
+            setTripComments([]);
+        } finally {
+            setTripCommentsLoading(false);
+        }
+    };
+
+    const loadTripEngagement = async (tripId) => {
+        if (!tripId) return;
+        await Promise.all([
+            loadTripLikesCount(tripId),
+            loadTripComments(tripId),
+        ]);
+    };
+
+    const createTripComment = async () => {
+        const tripId = normalizeTripId(selectedTrip) ?? normalizeTripId(resolveTripDto(selectedTrip));
+        const commentText = newCommentText.trim();
+        if (!tripId || !commentText || commentSubmitting) return;
+
+        setCommentSubmitting(true);
+        setTripCommentsError("");
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${TRIPS_BASE_URL}/${encodeURIComponent(tripId)}/comments`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+                body: JSON.stringify({ comment: commentText }),
+            });
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripCommentsError(data.message || "Could not create comment.");
+                return;
+            }
+            setNewCommentText("");
+            await loadTripComments(tripId);
+        } catch {
+            setTripCommentsError("An error occurred while creating comment.");
+        } finally {
+            setCommentSubmitting(false);
+        }
+    };
+
+    const beginEditComment = (comment) => {
+        setEditingCommentId(comment?.id ?? null);
+        setEditingCommentText(comment?.text ?? "");
+        setTripCommentsError("");
+    };
+
+    const cancelEditComment = () => {
+        setEditingCommentId(null);
+        setEditingCommentText("");
+    };
+
+    const saveEditedComment = async (commentId) => {
+        const tripId = normalizeTripId(selectedTrip) ?? normalizeTripId(resolveTripDto(selectedTrip));
+        const nextText = editingCommentText.trim();
+        if (!tripId || !commentId || !nextText) return;
+
+        setCommentActionLoadingId(commentId);
+        setTripCommentsError("");
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const payload = JSON.stringify({ comment: nextText });
+            const methodsToTry = ["PUT", "PATCH"];
+            let response = null;
+            let data = {};
+
+            for (const method of methodsToTry) {
+                response = await fetch(`${TRIPS_BASE_URL}/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`, {
+                    method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                    },
+                    body: payload,
+                });
+                data = await parseApiResponse(response);
+                if (response.ok) break;
+                if (response.status !== 405) break;
+            }
+
+            if (!response || !response.ok) {
+                setTripCommentsError(data.message || "Could not update comment.");
+                return;
+            }
+
+            cancelEditComment();
+            await loadTripComments(tripId);
+        } catch {
+            setTripCommentsError("An error occurred while updating comment.");
+        } finally {
+            setCommentActionLoadingId(null);
+        }
+    };
+
+    const deleteComment = async (commentId) => {
+        const tripId = normalizeTripId(selectedTrip) ?? normalizeTripId(resolveTripDto(selectedTrip));
+        if (!tripId || !commentId) return;
+        setCommentActionLoadingId(commentId);
+        setTripCommentsError("");
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${TRIPS_BASE_URL}/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`, {
+                method: "DELETE",
+                headers: {
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripCommentsError(data.message || "Could not delete comment.");
+                return;
+            }
+            if (editingCommentId === commentId) {
+                cancelEditComment();
+            }
+            await loadTripComments(tripId);
+        } catch {
+            setTripCommentsError("An error occurred while deleting comment.");
+        } finally {
+            setCommentActionLoadingId(null);
+        }
+    };
+
+    const isOwnComment = (comment) => {
+        return normalizeId(comment?.userId) != null && normalizeId(comment?.userId) === currentUserId;
     };
 
     const loadAllTrips = async () => {
@@ -116,6 +372,12 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         setError("");
         setSelectedTrip(null);
         setIsEditing(false);
+        setTripLikeCount(0);
+        setTripLikeError("");
+        setTripComments([]);
+        setTripCommentsError("");
+        setNewCommentText("");
+        cancelEditComment();
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
@@ -200,6 +462,7 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
 
     useEffect(() => {
         loadAllTrips();
+        loadCurrentUser();
     }, []);
 
     const handleSearch = async (e) => {
@@ -214,6 +477,12 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         setError("");
         setSelectedTrip(null);
         setIsEditing(false);
+        setTripLikeCount(0);
+        setTripLikeError("");
+        setTripComments([]);
+        setTripCommentsError("");
+        setNewCommentText("");
+        cancelEditComment();
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
@@ -255,6 +524,9 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         });
         setProfileError("");
         setIsEditing(false);
+        cancelEditComment();
+        setNewCommentText("");
+        loadTripEngagement(normalizedTrip.id);
     };
 
     const handleSaveTrip = async () => {
@@ -331,6 +603,12 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
             setSelectedTrip(null);
             setTripDraft(null);
             setIsEditing(false);
+            setTripLikeCount(0);
+            setTripLikeError("");
+            setTripComments([]);
+            setTripCommentsError("");
+            setNewCommentText("");
+            cancelEditComment();
         } catch {
             setProfileError("An error occurred while deleting this trip.");
         } finally {
@@ -345,7 +623,9 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                 {!selectedTrip && (
                     <div className="trips-list-layout">
                         <div className="login-container trips-search-container trips-search-container-wide">
-                            <h2 className="trips-search-title">Trips</h2>
+                            <h2 className="trips-search-title section-split-heading">
+                                <span className="heading-blue">My</span><span className="heading-white">Trips</span>
+                            </h2>
                             <form className="trips-search-form" onSubmit={handleSearch}>
                                 <input
                                     type="text"
@@ -429,7 +709,9 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                 {selectedTrip && (
                     <div className="trips-profile-layout">
                         <div className="login-container trips-profile-container">
-                            <h2 className="trips-search-title">Trip Profile</h2>
+                            <h2 className="trips-search-title section-split-heading">
+                                <span className="heading-blue">Trip</span><span className="heading-white">Profile</span>
+                            </h2>
                             {profileError && <p className="error">{profileError}</p>}
 
                             {!isEditing && (
@@ -547,14 +829,14 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                             </div>
                         </div>
 
-                        <div className="trips-photos-panel">
+                        <div className="trips-photos-panel trips-photos-panel-compact">
                             <h3 className="trips-photos-title">Trip Photos</h3>
                             {extractPhotoUrls(selectedTrip).length > 0 ? (
                                 <BounceCards
                                     className="trips-bounce-cards"
                                     images={extractPhotoUrls(selectedTrip)}
-                                    containerWidth={340}
-                                    containerHeight={260}
+                                    containerWidth={280}
+                                    containerHeight={210}
                                     animationDelay={0.8}
                                     animationStagger={0.08}
                                     easeType="elastic.out(1, 0.5)"
@@ -570,6 +852,102 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                             ) : (
                                 <p className="trips-no-photos">No trip photos available.</p>
                             )}
+                        </div>
+
+                        <div className="login-container trips-activity-panel">
+                            <h3 className="trips-photos-title section-split-heading section-split-heading-small">
+                                <span className="heading-blue">Trip</span><span className="heading-white">Activity</span>
+                            </h3>
+                            {tripLikeError && <p className="error">{tripLikeError}</p>}
+                            <p className="trip-like-summary">
+                                Likes: {tripLikeLoading ? "Loading..." : tripLikeCount}
+                            </p>
+                            <h4 className="trips-photos-title">Comments</h4>
+                            {tripCommentsError && <p className="error">{tripCommentsError}</p>}
+                            <div className="trip-comments-list">
+                                {tripCommentsLoading && <p className="trip-placeholder-text">Loading comments...</p>}
+                                {!tripCommentsLoading && tripComments.length === 0 && (
+                                    <p className="trip-placeholder-text">No comments yet.</p>
+                                )}
+                                {!tripCommentsLoading && tripComments.length > 0 && (
+                                    <div className="trip-comment-items">
+                                        {tripComments.map((comment) => (
+                                            <div className="trip-comment-item" key={comment.id ?? `${comment.authorName}-${comment.createdAt}`}>
+                                                <div className="trip-comment-meta">
+                                                    <span>{comment.authorName || "Unknown User"}</span>
+                                                    <span>{formatDate(comment.createdAt)}</span>
+                                                </div>
+                                                {editingCommentId === comment.id ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editingCommentText}
+                                                        onChange={(e) => setEditingCommentText(e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <p className="trip-comment-text">{comment.text || "N/A"}</p>
+                                                )}
+                                                {isOwnComment(comment) && (
+                                                    <div className="trip-comment-actions">
+                                                        {editingCommentId === comment.id ? (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => saveEditedComment(comment.id)}
+                                                                    disabled={commentActionLoadingId === comment.id}
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-action-button"
+                                                                    onClick={cancelEditComment}
+                                                                    disabled={commentActionLoadingId === comment.id}
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => beginEditComment(comment)}
+                                                                    disabled={commentActionLoadingId === comment.id}
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => deleteComment(comment.id)}
+                                                                    disabled={commentActionLoadingId === comment.id}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="trip-comment-composer">
+                                <input
+                                    type="text"
+                                    placeholder="Write a comment"
+                                    value={newCommentText}
+                                    onChange={(e) => setNewCommentText(e.target.value)}
+                                />
+                            </div>
+                            <div className="trip-feedback-actions">
+                                <button
+                                    type="button"
+                                    onClick={createTripComment}
+                                    disabled={commentSubmitting || newCommentText.trim() === ""}
+                                >
+                                    {commentSubmitting ? "Posting..." : "Comment"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

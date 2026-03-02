@@ -61,6 +61,14 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
     const [selectedTrip, setSelectedTrip] = useState(null);
     const [tripLikeLoading, setTripLikeLoading] = useState(false);
     const [tripLikeError, setTripLikeError] = useState("");
+    const [tripComments, setTripComments] = useState([]);
+    const [tripCommentsLoading, setTripCommentsLoading] = useState(false);
+    const [tripCommentsError, setTripCommentsError] = useState("");
+    const [newCommentText, setNewCommentText] = useState("");
+    const [commentSubmitting, setCommentSubmitting] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingCommentText, setEditingCommentText] = useState("");
+    const [commentActionLoadingId, setCommentActionLoadingId] = useState(null);
     const getUserId = (user) => normalizeId(user?.id);
 
     const formatDate = (value) => {
@@ -153,6 +161,17 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         };
     };
 
+    const getTripOwnerId = (dto) =>
+        normalizeId(
+            dto?.userId ??
+            dto?.user?.id ??
+            dto?.ownerId ??
+            dto?.owner?.id ??
+            dto?.tripUserId ??
+            dto?.createdByUserId ??
+            dto?.authorId
+        );
+
     const extractTrips = (data) => {
         if (Array.isArray(data)) return data;
         if (Array.isArray(data?.trips)) return data.trips;
@@ -181,6 +200,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             isLiked: likeState.isLiked,
             likeId: likeState.likeId,
             likeCount: resolveTripLikeCount(dto),
+            ownerUserId: getTripOwnerId(dto),
         };
     };
 
@@ -188,6 +208,49 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         if (!photo) return null;
         if (typeof photo === "string") return photo;
         return photo.url ?? photo.photoUrl ?? photo.imageUrl ?? photo.src ?? null;
+    };
+
+    const normalizeCommentId = (comment) =>
+        normalizeId(comment?.id ?? comment?.commentId ?? comment?.tripCommentId ?? comment?.trip_comment_id);
+
+    const getCommentText = (comment) =>
+        comment?.comment ?? comment?.content ?? comment?.text ?? comment?.message ?? comment?.body ?? comment?.description ?? "";
+
+    const extractCommentsFromResponse = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.comments)) return data.comments;
+        if (Array.isArray(data?.tripComments)) return data.tripComments;
+        if (Array.isArray(data?.commentDtos)) return data.commentDtos;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        return [];
+    };
+
+    const mapComment = (comment) => {
+        const userId = normalizeId(comment?.userId ?? comment?.user?.id ?? comment?.authorId ?? comment?.ownerId);
+        const explicitName =
+            [comment?.firstName, comment?.lastName].filter(Boolean).join(" ") ||
+            [comment?.userFirstName, comment?.userLastName].filter(Boolean).join(" ") ||
+            [comment?.authorFirstName, comment?.authorLastName].filter(Boolean).join(" ") ||
+            [comment?.user?.firstName, comment?.user?.lastName].filter(Boolean).join(" ");
+        const profileName = userId != null && userId === getUserId(profile)
+            ? [profile?.firstName, profile?.lastName].filter(Boolean).join(" ")
+            : "";
+
+        return {
+            id: normalizeCommentId(comment),
+            text: getCommentText(comment),
+            userId,
+            authorName:
+                explicitName ||
+                comment?.authorName ||
+                comment?.userName ||
+                comment?.username ||
+                profileName ||
+                "Unknown User",
+            createdAt: comment?.createdAt ?? comment?.created_at ?? comment?.timestamp ?? "",
+        };
     };
 
     const loadSelectedUserTrips = async (userId) => {
@@ -222,6 +285,10 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
     const handleViewProfile = (user) => {
         setSelectedTrip(null);
         setTripLikeError("");
+        setTripComments([]);
+        setTripCommentsError("");
+        setNewCommentText("");
+        cancelEditComment();
         setSelectedUser(user);
         const userId = getUserId(user);
         loadSelectedUserStats(userId);
@@ -230,10 +297,15 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
     const handleViewTrip = (trip) => {
         setTripLikeError("");
+        setTripCommentsError("");
+        setEditingCommentId(null);
+        setEditingCommentText("");
+        setNewCommentText("");
         setSelectedTrip(trip);
         const tripId = normalizeId(trip?.id);
         if (tripId) {
             loadTripLikes(tripId);
+            loadTripComments(tripId);
         }
     };
 
@@ -271,6 +343,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             const isLiked = Boolean(matchedLike);
             const likeId = getTripLikeId(matchedLike);
             const likeCount = resolveTripLikeCountFromResponse(data);
+            const knownOwnerId = normalizeId(selectedTrip?.ownerUserId);
 
             setSelectedTrip((prev) => {
                 if (!prev || normalizeId(prev.id) !== normalizedTripId) return prev;
@@ -279,6 +352,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                     isLiked,
                     likeId: likeId ?? null,
                     likeCount,
+                    ownerUserId: knownOwnerId ?? normalizeId(prev.ownerUserId),
                 };
             });
 
@@ -296,6 +370,176 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             );
         } catch {
             // Keep existing local like data on fetch failure.
+        }
+    };
+
+    const loadTripComments = async (tripId) => {
+        const normalizedTripId = normalizeId(tripId);
+        if (!normalizedTripId) return;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        setTripCommentsLoading(true);
+        setTripCommentsError("");
+
+        try {
+            const response = await fetch(
+                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(normalizedTripId)}/comments`,
+                {
+                    headers: {
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                    },
+                }
+            );
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripCommentsError(data.message || "Could not load comments for this trip.");
+                setTripComments([]);
+                return;
+            }
+            setTripComments(extractCommentsFromResponse(data).map(mapComment));
+        } catch {
+            setTripCommentsError("An error occurred while loading comments.");
+            setTripComments([]);
+        } finally {
+            setTripCommentsLoading(false);
+        }
+    };
+
+    const createTripComment = async () => {
+        if (commentSubmitting || !selectedTrip) return;
+        const tripId = normalizeId(selectedTrip.id);
+        const commentText = newCommentText.trim();
+        if (!tripId || !commentText) return;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        setCommentSubmitting(true);
+        setTripCommentsError("");
+
+        try {
+            const response = await fetch(
+                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/comments`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                    },
+                    body: JSON.stringify({ comment: commentText }),
+                }
+            );
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripCommentsError(data.message || "Could not create comment.");
+                return;
+            }
+            setNewCommentText("");
+            await loadTripComments(tripId);
+        } catch {
+            setTripCommentsError("An error occurred while creating comment.");
+        } finally {
+            setCommentSubmitting(false);
+        }
+    };
+
+    const beginEditComment = (comment) => {
+        setEditingCommentId(comment.id ?? null);
+        setEditingCommentText(comment.text ?? "");
+        setTripCommentsError("");
+    };
+
+    const cancelEditComment = () => {
+        setEditingCommentId(null);
+        setEditingCommentText("");
+    };
+
+    const isOwnComment = (comment) => {
+        const currentUserId = getUserId(profile);
+        return currentUserId != null && normalizeId(comment?.userId) === currentUserId;
+    };
+
+    const canLikeSelectedTrip = () => {
+        if (!selectedTrip) return false;
+        const currentUserId = getUserId(profile);
+        const tripOwnerId = normalizeId(selectedTrip.ownerUserId);
+        if (currentUserId == null || tripOwnerId == null) return true;
+        return currentUserId !== tripOwnerId;
+    };
+
+    const saveEditedComment = async (commentId) => {
+        if (!selectedTrip || !commentId) return;
+        const tripId = normalizeId(selectedTrip.id);
+        const nextText = editingCommentText.trim();
+        if (!tripId || !nextText) return;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        setCommentActionLoadingId(commentId);
+        setTripCommentsError("");
+
+        try {
+            const payload = JSON.stringify({ comment: nextText });
+            const methodsToTry = ["PUT", "PATCH"];
+            let response = null;
+            let data = {};
+
+            for (const method of methodsToTry) {
+                response = await fetch(
+                    `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`,
+                    {
+                        method,
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                        },
+                        body: payload,
+                    }
+                );
+                data = await parseApiResponse(response);
+                if (response.ok) break;
+                if (response.status !== 405) break;
+            }
+
+            if (!response || !response.ok) {
+                setTripCommentsError(data.message || "Could not update comment.");
+                return;
+            }
+
+            cancelEditComment();
+            await loadTripComments(tripId);
+        } catch {
+            setTripCommentsError("An error occurred while updating comment.");
+        } finally {
+            setCommentActionLoadingId(null);
+        }
+    };
+
+    const deleteComment = async (commentId) => {
+        if (!selectedTrip || !commentId) return;
+        const tripId = normalizeId(selectedTrip.id);
+        if (!tripId) return;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        setCommentActionLoadingId(commentId);
+        setTripCommentsError("");
+
+        try {
+            const response = await fetch(
+                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                    },
+                }
+            );
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripCommentsError(data.message || "Could not delete comment.");
+                return;
+            }
+            if (editingCommentId === commentId) {
+                cancelEditComment();
+            }
+            await loadTripComments(tripId);
+        } catch {
+            setTripCommentsError("An error occurred while deleting comment.");
+        } finally {
+            setCommentActionLoadingId(null);
         }
     };
 
@@ -598,6 +842,10 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         setSelectedUserTripsError("");
         setSelectedTrip(null);
         setTripLikeError("");
+        setTripComments([]);
+        setTripCommentsError("");
+        setNewCommentText("");
+        cancelEditComment();
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
@@ -845,7 +1093,9 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                     {selectedTrip ? (
                         <>
                             <div className="login-container dashboard-card trip-details-pane">
-                                <h2 className="profile-title" style={{ color: "white" }}>Trip Details</h2>
+                                <h2 className="profile-title section-split-heading">
+                                    <span className="heading-blue">Trip</span><span className="heading-white">Details</span>
+                                </h2>
                                 <div className="profile-section searched-user-profile-section trip-details-main-panel">
                                     <div className="profile-row">
                                         <span className="profile-label">Title</span>
@@ -876,6 +1126,10 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                         className="text-action-button"
                                         onClick={() => {
                                             setTripLikeError("");
+                                            setTripComments([]);
+                                            setTripCommentsError("");
+                                            setNewCommentText("");
+                                            cancelEditComment();
                                             setSelectedTrip(null);
                                         }}
                                     >
@@ -884,7 +1138,9 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                 </div>
                             </div>
                             <div className="login-container dashboard-card trip-extras-pane">
-                                <h2 className="profile-title" style={{ color: "white" }}>Trip Activity</h2>
+                                <h2 className="profile-title section-split-heading">
+                                    <span className="heading-blue">Trip</span><span className="heading-white">Activity</span>
+                                </h2>
                                 <div className="profile-section searched-user-profile-section trip-details-extras trip-details-extras-panel">
                                     <h3 className="searched-user-trips-title">Trip Photos</h3>
                                     <div className="trip-photos-grid">
@@ -906,19 +1162,103 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                         Likes: {selectedTrip.likeCount ?? 0}
                                     </p>
                                     <div className="trip-comments-list">
-                                        <p className="trip-placeholder-text">Comments will be shown here.</p>
+                                        {tripCommentsLoading && <p className="trip-placeholder-text">Loading comments...</p>}
+                                        {!tripCommentsLoading && tripComments.length === 0 && (
+                                            <p className="trip-placeholder-text">No comments yet.</p>
+                                        )}
+                                        {!tripCommentsLoading && tripComments.length > 0 && (
+                                            <div className="trip-comment-items">
+                                                {tripComments.map((comment) => (
+                                                    <div className="trip-comment-item" key={comment.id ?? `${comment.userId}-${comment.createdAt}`}>
+                                                        <div className="trip-comment-meta">
+                                                            <span>{comment.authorName || "Unknown User"}</span>
+                                                            <span>{formatDate(comment.createdAt)}</span>
+                                                        </div>
+                                                        {editingCommentId === comment.id ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editingCommentText}
+                                                                onChange={(e) => setEditingCommentText(e.target.value)}
+                                                            />
+                                                        ) : (
+                                                            <p className="trip-comment-text">{comment.text || "N/A"}</p>
+                                                        )}
+                                                        {isOwnComment(comment) && (
+                                                            <div className="trip-comment-actions">
+                                                                {editingCommentId === comment.id ? (
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => saveEditedComment(comment.id)}
+                                                                            disabled={commentActionLoadingId === comment.id}
+                                                                        >
+                                                                            Save
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="text-action-button"
+                                                                            onClick={cancelEditComment}
+                                                                            disabled={commentActionLoadingId === comment.id}
+                                                                        >
+                                                                            Cancel
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="text-action-button"
+                                                                            onClick={() => beginEditComment(comment)}
+                                                                            disabled={commentActionLoadingId === comment.id}
+                                                                        >
+                                                                            Edit
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="text-action-button"
+                                                                            onClick={() => deleteComment(comment.id)}
+                                                                            disabled={commentActionLoadingId === comment.id}
+                                                                        >
+                                                                            Delete
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="trip-comment-composer">
+                                        <input
+                                            type="text"
+                                            placeholder="Write a comment"
+                                            value={newCommentText}
+                                            onChange={(e) => setNewCommentText(e.target.value)}
+                                        />
                                     </div>
                                     <div className="trip-feedback-actions">
-                                        <button type="button" onClick={toggleTripLike} disabled={tripLikeLoading}>
-                                            {tripLikeLoading
-                                                ? "Updating..."
-                                                : selectedTrip.isLiked
-                                                    ? "Dislike"
-                                                    : "Like"}
+                                        {canLikeSelectedTrip() && (
+                                            <button type="button" onClick={toggleTripLike} disabled={tripLikeLoading}>
+                                                {tripLikeLoading
+                                                    ? "Updating..."
+                                                    : selectedTrip.isLiked
+                                                        ? "Dislike"
+                                                        : "Like"}
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="text-action-button"
+                                            onClick={createTripComment}
+                                            disabled={commentSubmitting || newCommentText.trim() === ""}
+                                        >
+                                            {commentSubmitting ? "Posting..." : "Comment"}
                                         </button>
-                                        <button type="button" className="text-action-button">Comment</button>
                                     </div>
                                     {tripLikeError && <p className="error">{tripLikeError}</p>}
+                                    {tripCommentsError && <p className="error">{tripCommentsError}</p>}
                                 </div>
                             </div>
                         </>
@@ -958,221 +1298,235 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                 </div>
                             </div>
                             <div className={`login-container dashboard-card profile-card ${selectedUser ? "profile-card-viewing-user" : ""}`}>
-                                <h2 className="profile-title" style={{ color: "white" }}>{selectedUser ? "User Profile" : "Profile"}</h2>
+                                <h2 className="profile-title section-split-heading">
+                                    {selectedUser ? (
+                                        <>
+                                            <span className="heading-blue">User</span><span className="heading-white">Profile</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="heading-blue">My</span><span className="heading-white">Profile</span>
+                                        </>
+                                    )}
+                                </h2>
                                 {!selectedUser && profileLoading && <p>Loading profile...</p>}
                                 {!selectedUser && profileError && <p className="error">{profileError}</p>}
                                 {selectedUser && (
-                            <div className="profile-section searched-user-profile-section">
-                                <div className="searched-user-header">
-                                    {selectedUser.avatarUrl ? (
-                                        <img
-                                            src={selectedUser.avatarUrl}
-                                            alt={`${selectedUser.firstName || "User"} avatar`}
-                                            className="profile-avatar"
-                                        />
-                                    ) : (
-                                        <div className="profile-avatar profile-avatar-placeholder">No Avatar</div>
-                                    )}
-                                    <div className="follow-stats">
-                                        <div className="follow-stat">
-                                            <span className="follow-stat-count">{resolveFollowerCount(selectedUser)}</span>
-                                            <span className="follow-stat-label">Followers</span>
+                                    <div className="profile-section searched-user-profile-section">
+                                        <div className="searched-user-header">
+                                            {selectedUser.avatarUrl ? (
+                                                <img
+                                                    src={selectedUser.avatarUrl}
+                                                    alt={`${selectedUser.firstName || "User"} avatar`}
+                                                    className="profile-avatar"
+                                                />
+                                            ) : (
+                                                <div className="profile-avatar profile-avatar-placeholder">No Avatar</div>
+                                            )}
+                                            <div className="follow-stats">
+                                                <div className="follow-stat">
+                                                    <span className="follow-stat-count">{resolveFollowerCount(selectedUser)}</span>
+                                                    <span className="follow-stat-label">Followers</span>
+                                                </div>
+                                                <div className="follow-stat">
+                                                    <span className="follow-stat-count">{resolveFollowingCount(selectedUser)}</span>
+                                                    <span className="follow-stat-label">Following</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="follow-stat">
-                                            <span className="follow-stat-count">{resolveFollowingCount(selectedUser)}</span>
-                                            <span className="follow-stat-label">Following</span>
+                                        <div className="profile-row">
+                                            <span className="profile-label">ID</span>
+                                            <span className="profile-value">{getUserId(selectedUser) ?? "N/A"}</span>
+                                        </div>
+                                        <div className="profile-row">
+                                            <span className="profile-label">First Name</span>
+                                            <span className="profile-value">{selectedUser.firstName || "N/A"}</span>
+                                        </div>
+                                        <div className="profile-row">
+                                            <span className="profile-label">Last Name</span>
+                                            <span className="profile-value">{selectedUser.lastName || "N/A"}</span>
+                                        </div>
+                                        <div className="profile-row">
+                                            <span className="profile-label">Bio</span>
+                                            <span className="profile-value">{selectedUser.bio || "No bio provided yet."}</span>
+                                        </div>
+                                        <div className="searched-user-actions">
+                                            <button
+                                                type="button"
+                                                className="follow-button"
+                                                onClick={toggleFollowUser}
+                                                disabled={followLoading}
+                                            >
+                                                {followLoading
+                                                    ? "Updating..."
+                                                    : getIsFollowing(selectedUser)
+                                                        ? "Unfollow"
+                                                        : "Follow"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="text-action-button"
+                                                onClick={() => {
+                                                    setSelectedTrip(null);
+                                                    setTripLikeError("");
+                                                    setTripComments([]);
+                                                    setTripCommentsError("");
+                                                    setNewCommentText("");
+                                                    cancelEditComment();
+                                                    setSelectedUser(null);
+                                                    setSelectedUserTrips([]);
+                                                    setSelectedUserTripsError("");
+                                                }}
+                                            >
+                                                Back To My Profile
+                                            </button>
+                                        </div>
+                                        <div className="searched-user-trips searched-user-trips-large">
+                                            <h3 className="searched-user-trips-title">Trips</h3>
+                                            {selectedUserTripsLoading && <p>Loading trips...</p>}
+                                            {selectedUserTripsError && <p className="error">{selectedUserTripsError}</p>}
+                                            {!selectedUserTripsLoading && selectedUserTrips.length === 0 && !selectedUserTripsError && (
+                                                <p>No trips found for this user.</p>
+                                            )}
+                                            {!selectedUserTripsLoading && selectedUserTrips.length > 0 && (
+                                                <div className="searched-user-trip-list">
+                                                    {selectedUserTrips.map((trip) => (
+                                                        <div className="searched-user-trip-item" key={trip.id ?? `${trip.title}-${trip.city}-${trip.country}`}>
+                                                            <div>
+                                                                <p className="trip-list-title">{trip.title}</p>
+                                                                <p className="trip-list-meta">{trip.city}, {trip.country}</p>
+                                                            </div>
+                                                            <button type="button" className="view-profile-button" onClick={() => handleViewTrip(trip)}>
+                                                                View
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                                <div className="profile-row">
-                                    <span className="profile-label">ID</span>
-                                    <span className="profile-value">{getUserId(selectedUser) ?? "N/A"}</span>
-                                </div>
-                                <div className="profile-row">
-                                    <span className="profile-label">First Name</span>
-                                    <span className="profile-value">{selectedUser.firstName || "N/A"}</span>
-                                </div>
-                                <div className="profile-row">
-                                    <span className="profile-label">Last Name</span>
-                                    <span className="profile-value">{selectedUser.lastName || "N/A"}</span>
-                                </div>
-                                <div className="profile-row">
-                                    <span className="profile-label">Bio</span>
-                                    <span className="profile-value">{selectedUser.bio || "No bio provided yet."}</span>
-                                </div>
-                                <div className="searched-user-actions">
-                                    <button
-                                        type="button"
-                                        className="follow-button"
-                                        onClick={toggleFollowUser}
-                                        disabled={followLoading}
-                                    >
-                                        {followLoading
-                                            ? "Updating..."
-                                            : getIsFollowing(selectedUser)
-                                                ? "Unfollow"
-                                                : "Follow"}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="text-action-button"
-                                        onClick={() => {
-                                            setSelectedTrip(null);
-                                            setTripLikeError("");
-                                            setSelectedUser(null);
-                                            setSelectedUserTrips([]);
-                                            setSelectedUserTripsError("");
-                                        }}
-                                    >
-                                        Back To My Profile
-                                    </button>
-                                </div>
-                                <div className="searched-user-trips searched-user-trips-large">
-                                    <h3 className="searched-user-trips-title">Trips</h3>
-                                    {selectedUserTripsLoading && <p>Loading trips...</p>}
-                                    {selectedUserTripsError && <p className="error">{selectedUserTripsError}</p>}
-                                    {!selectedUserTripsLoading && selectedUserTrips.length === 0 && !selectedUserTripsError && (
-                                        <p>No trips found for this user.</p>
-                                    )}
-                                    {!selectedUserTripsLoading && selectedUserTrips.length > 0 && (
-                                        <div className="searched-user-trip-list">
-                                            {selectedUserTrips.map((trip) => (
-                                                <div className="searched-user-trip-item" key={trip.id ?? `${trip.title}-${trip.city}-${trip.country}`}>
-                                                    <div>
-                                                        <p className="trip-list-title">{trip.title}</p>
-                                                        <p className="trip-list-meta">{trip.city}, {trip.country}</p>
-                                                    </div>
-                                                    <button type="button" className="view-profile-button" onClick={() => handleViewTrip(trip)}>
-                                                        View
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
                                 )}
                                 {!selectedUser && !profileLoading && profile && (
-                            <div className="profile-section">
-                                <div className="profile-avatar-wrap">
-                                    {profile.avatarUrl ? (
-                                        <img src={profile.avatarUrl} alt="Profile avatar" className="profile-avatar" />
-                                    ) : (
-                                        <div className="profile-avatar profile-avatar-placeholder">No Avatar</div>
-                                    )}
-                                    <button
-                                        type="button"
-                                        className="icon-action-button avatar-edit-button"
-                                        onClick={() => beginEdit("avatarUrl")}
-                                        title="Edit Avatar"
-                                    >
-                                        <PencilIcon />
-                                    </button>
-                                </div>
-                                <div className="follow-stats profile-follow-stats">
-                                    <div className="follow-stat">
-                                        <span className="follow-stat-count">{myFollowerCount}</span>
-                                        <span className="follow-stat-label">Followers</span>
-                                    </div>
-                                    <div className="follow-stat">
-                                        <span className="follow-stat-count">{myFollowingCount}</span>
-                                        <span className="follow-stat-label">Following</span>
-                                    </div>
-                                </div>
-                                {editingField === "avatarUrl" && (
-                                    <div className="profile-row">
-                                        <span className="profile-label">Image URL</span>
-                                        <input
-                                            type="text"
-                                            value={fieldDrafts.avatarUrl ?? ""}
-                                            onChange={(e) =>
-                                                setFieldDrafts((prev) => ({
-                                                    ...prev,
-                                                    avatarUrl: e.target.value,
-                                                }))
-                                            }
-                                        />
-                                        <button
-                                            type="button"
-                                            className="icon-action-button"
-                                            onClick={() => saveField("avatarUrl")}
-                                            title="Save Avatar"
-                                            disabled={savingField === "avatarUrl"}
-                                        >
-                                            <CheckIcon />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="text-action-button"
-                                            onClick={cancelEdit}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                )}
-
-                                <div className="profile-row">
-                                    <span className="profile-label">ID</span>
-                                    <span className="profile-value">{profile.id ?? "N/A"}</span>
-                                </div>
-
-                                {editableFields.map((field) => {
-                                    const isEditing = editingField === field.key;
-                                    const isSaving = savingField === field.key;
-                                    const value = profile[field.key] ?? "";
-
-                                    return (
-                                        <div className="profile-row" key={field.key}>
-                                            <span className="profile-label">{field.label}</span>
-                                            {!isEditing && <span className="profile-value">{value || "N/A"}</span>}
-                                            {isEditing && (
+                                    <div className="profile-section">
+                                        <div className="profile-avatar-wrap">
+                                            {profile.avatarUrl ? (
+                                                <img src={profile.avatarUrl} alt="Profile avatar" className="profile-avatar" />
+                                            ) : (
+                                                <div className="profile-avatar profile-avatar-placeholder">No Avatar</div>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="icon-action-button avatar-edit-button"
+                                                onClick={() => beginEdit("avatarUrl")}
+                                                title="Edit Avatar"
+                                            >
+                                                <PencilIcon />
+                                            </button>
+                                        </div>
+                                        <div className="follow-stats profile-follow-stats">
+                                            <div className="follow-stat">
+                                                <span className="follow-stat-count">{myFollowerCount}</span>
+                                                <span className="follow-stat-label">Followers</span>
+                                            </div>
+                                            <div className="follow-stat">
+                                                <span className="follow-stat-count">{myFollowingCount}</span>
+                                                <span className="follow-stat-label">Following</span>
+                                            </div>
+                                        </div>
+                                        {editingField === "avatarUrl" && (
+                                            <div className="profile-row">
+                                                <span className="profile-label">Image URL</span>
                                                 <input
                                                     type="text"
-                                                    value={fieldDrafts[field.key] ?? ""}
+                                                    value={fieldDrafts.avatarUrl ?? ""}
                                                     onChange={(e) =>
                                                         setFieldDrafts((prev) => ({
                                                             ...prev,
-                                                            [field.key]: e.target.value,
+                                                            avatarUrl: e.target.value,
                                                         }))
                                                     }
                                                 />
-                                            )}
-
-                                            {!isEditing && (
                                                 <button
                                                     type="button"
                                                     className="icon-action-button"
-                                                    onClick={() => beginEdit(field.key)}
-                                                    title={`Edit ${field.label}`}
+                                                    onClick={() => saveField("avatarUrl")}
+                                                    title="Save Avatar"
+                                                    disabled={savingField === "avatarUrl"}
                                                 >
-                                                    <PencilIcon />
+                                                    <CheckIcon />
                                                 </button>
-                                            )}
+                                                <button
+                                                    type="button"
+                                                    className="text-action-button"
+                                                    onClick={cancelEdit}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        )}
 
-                                            {isEditing && (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        className="icon-action-button"
-                                                        onClick={() => saveField(field.key)}
-                                                        title={`Save ${field.label}`}
-                                                        disabled={isSaving}
-                                                    >
-                                                        <CheckIcon />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="text-action-button"
-                                                        onClick={cancelEdit}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </>
-                                            )}
+                                        <div className="profile-row">
+                                            <span className="profile-label">ID</span>
+                                            <span className="profile-value">{profile.id ?? "N/A"}</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
+
+                                        {editableFields.map((field) => {
+                                            const isEditing = editingField === field.key;
+                                            const isSaving = savingField === field.key;
+                                            const value = profile[field.key] ?? "";
+
+                                            return (
+                                                <div className="profile-row" key={field.key}>
+                                                    <span className="profile-label">{field.label}</span>
+                                                    {!isEditing && <span className="profile-value">{value || "N/A"}</span>}
+                                                    {isEditing && (
+                                                        <input
+                                                            type="text"
+                                                            value={fieldDrafts[field.key] ?? ""}
+                                                            onChange={(e) =>
+                                                                setFieldDrafts((prev) => ({
+                                                                    ...prev,
+                                                                    [field.key]: e.target.value,
+                                                                }))
+                                                            }
+                                                        />
+                                                    )}
+
+                                                    {!isEditing && (
+                                                        <button
+                                                            type="button"
+                                                            className="icon-action-button"
+                                                            onClick={() => beginEdit(field.key)}
+                                                            title={`Edit ${field.label}`}
+                                                        >
+                                                            <PencilIcon />
+                                                        </button>
+                                                    )}
+
+                                                    {isEditing && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                className="icon-action-button"
+                                                                onClick={() => saveField(field.key)}
+                                                                title={`Save ${field.label}`}
+                                                                disabled={isSaving}
+                                                            >
+                                                                <CheckIcon />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="text-action-button"
+                                                                onClick={cancelEdit}
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         </>
