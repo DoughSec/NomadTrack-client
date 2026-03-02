@@ -197,8 +197,9 @@
 }
 
 .trips-main-left {
-  justify-content: flex-start;
+  justify-content: center;
   padding-left: 48px;
+  padding-right: 48px;
 }
 
 .login-container {
@@ -351,9 +352,10 @@
 .trips-profile-layout {
   width: min(1240px, 96vw);
   display: grid;
-  grid-template-columns: minmax(360px, 520px) minmax(360px, 1fr);
+  grid-template-columns: minmax(420px, 560px) minmax(320px, 1fr);
   gap: 24px;
   align-items: start;
+  margin: 0 auto;
 }
 
 .trips-profile-card {
@@ -393,6 +395,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.trips-photos-panel-compact {
+  min-height: 320px;
+  padding: 16px;
+}
+
+.trips-activity-panel {
+  grid-column: 1 / -1;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(4, 8, 16, 0.62);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .trips-photos-title {
@@ -438,6 +456,21 @@
 
 .login-container input::placeholder {
   color: rgba(255, 255, 255, 0.65);
+}
+
+.login-container input[type="date"] {
+  color-scheme: light;
+}
+
+.login-container input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  color-scheme: light;
+  opacity: 1;
+}
+
+.login-container input[type="password"]::-ms-reveal,
+.login-container input[type="password"]::-ms-clear {
+  filter: invert(1);
 }
 
 .login-container button {
@@ -489,6 +522,30 @@
   color: #007bff;
 }
 
+.section-split-heading {
+  width: 100%;
+  margin: 0 auto 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  line-height: 1.05;
+  letter-spacing: 0.2px;
+}
+
+.section-split-heading-small {
+  font-size: 1.55rem;
+  margin-bottom: 10px;
+}
+
+.heading-blue {
+  color: #0a84ff;
+}
+
+.heading-white {
+  color: #f3f7ff;
+}
+
 .dashboard-layout {
   width: min(1280px, 97vw);
   display: grid;
@@ -522,7 +579,7 @@
 }
 
 .profile-title {
-  width: min(540px, 92vw);
+  width: 100%;
   margin: 0 auto;
   text-align: center;
 }
@@ -849,10 +906,54 @@
 
 .trip-comments-list {
   min-height: 80px;
+  max-height: 260px;
+  overflow-y: auto;
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.trip-comment-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trip-comment-item {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(4, 8, 16, 0.56);
+}
+
+.trip-comment-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+}
+
+.trip-comment-text {
+  margin: 8px 0;
+  color: #ffffff;
+}
+
+.trip-comment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.trip-comment-actions button {
+  padding: 10px 14px;
+}
+
+.trip-comment-composer input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #ffffff;
 }
 
 .trip-like-summary {
@@ -868,6 +969,12 @@
 
 .trip-feedback-actions button {
   flex: 1;
+}
+
+.trip-feedback-actions button:disabled,
+.trip-comment-actions button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 @media (max-width: 980px) {
@@ -918,5 +1025,9 @@
 
   .trips-photos-panel {
     min-height: 360px;
+  }
+
+  .trips-activity-panel {
+    grid-column: auto;
   }
 }
