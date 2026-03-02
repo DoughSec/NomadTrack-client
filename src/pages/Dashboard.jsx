@@ -7,6 +7,7 @@ const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
 const USERS_ME_URL = `${BASE_URL}/nomadTrack/users/me`;
 const FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows/following`;
 const FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows/followers`;
+const USER_TRIPS_URL = `${BASE_URL}/nomadTrack/trips/user`;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
     return tokenValue.replace(/^Bearer\s+/i, "").trim();
@@ -54,8 +55,328 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
     const [myFollowingCount, setMyFollowingCount] = useState(0);
     const [myFollowerCount, setMyFollowerCount] = useState(0);
     const [followedUserIds, setFollowedUserIds] = useState([]);
-    const [selectedUserStatsLoading, setSelectedUserStatsLoading] = useState(false);
+    const [selectedUserTrips, setSelectedUserTrips] = useState([]);
+    const [selectedUserTripsLoading, setSelectedUserTripsLoading] = useState(false);
+    const [selectedUserTripsError, setSelectedUserTripsError] = useState("");
+    const [selectedTrip, setSelectedTrip] = useState(null);
+    const [tripLikeLoading, setTripLikeLoading] = useState(false);
+    const [tripLikeError, setTripLikeError] = useState("");
     const getUserId = (user) => normalizeId(user?.id);
+
+    const formatDate = (value) => {
+        if (!value) return "N/A";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString();
+    };
+
+    const normalizeTripId = (trip) => {
+        if (!trip || typeof trip !== "object") return null;
+        const candidates = [trip.id, trip.tripId, trip.trip_id];
+        const found = candidates.find((value) => value != null && value !== "");
+        return normalizeId(found);
+    };
+
+    const resolveTripDto = (trip) => {
+        if (!trip || typeof trip !== "object") return {};
+        return trip.trip ?? trip.tripDto ?? trip.dto ?? trip.data ?? trip.result ?? trip;
+    };
+
+    const getTripLikeId = (like) =>
+        normalizeId(like?.id ?? like?.likeId ?? like?.tripLikeId ?? like?.trip_like_id);
+
+    const getTripLikeUserId = (like) =>
+        normalizeId(
+            like?.userId ??
+            like?.user?.id ??
+            like?.likerId ??
+            like?.likedByUserId ??
+            like?.ownerId
+        );
+
+    const getTripLikesArray = (dto) => {
+        if (Array.isArray(dto?.likes)) return dto.likes;
+        if (Array.isArray(dto?.tripLikes)) return dto.tripLikes;
+        if (Array.isArray(dto?.likeDtos)) return dto.likeDtos;
+        return [];
+    };
+
+    const getTripLikesFromResponse = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.likes)) return data.likes;
+        if (Array.isArray(data?.tripLikes)) return data.tripLikes;
+        if (Array.isArray(data?.likeDtos)) return data.likeDtos;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        return [];
+    };
+
+    const resolveTripLikeCountFromResponse = (data) => {
+        if (typeof data?.likeCount === "number") return data.likeCount;
+        if (typeof data?.likesCount === "number") return data.likesCount;
+        if (typeof data?.totalLikes === "number") return data.totalLikes;
+        return getTripLikesFromResponse(data).length;
+    };
+
+    const resolveTripLikeCount = (dto) => {
+        if (typeof dto?.likeCount === "number") return dto.likeCount;
+        if (typeof dto?.likesCount === "number") return dto.likesCount;
+        if (typeof dto?.totalLikes === "number") return dto.totalLikes;
+        return getTripLikesArray(dto).length;
+    };
+
+    const resolveTripLikeState = (dto, currentUserId) => {
+        const explicitLiked = dto?.isLiked ?? dto?.likedByCurrentUser ?? dto?.liked;
+        const explicitLikeId = normalizeId(dto?.likeId ?? dto?.myLikeId ?? dto?.currentUserLikeId);
+        if (typeof explicitLiked === "boolean") {
+            return {
+                isLiked: explicitLiked,
+                likeId: explicitLikeId,
+            };
+        }
+
+        const likes = getTripLikesArray(dto);
+        if (likes.length > 0 && currentUserId != null) {
+            const matchedLike = likes.find((like) => getTripLikeUserId(like) === currentUserId);
+            if (matchedLike) {
+                return {
+                    isLiked: true,
+                    likeId: getTripLikeId(matchedLike),
+                };
+            }
+        }
+
+        return {
+            isLiked: false,
+            likeId: explicitLikeId,
+        };
+    };
+
+    const extractTrips = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.trips)) return data.trips;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        if (data?.trip && typeof data.trip === "object") return [data.trip];
+        if (data?.tripDto && typeof data.tripDto === "object") return [data.tripDto];
+        if (data?.result?.trip && typeof data.result.trip === "object") return [data.result.trip];
+        return [];
+    };
+
+    const mapTrip = (trip) => {
+        const currentUserId = getUserId(profile);
+        const dto = resolveTripDto(trip);
+        const likeState = resolveTripLikeState(dto, currentUserId);
+        return {
+            id: normalizeTripId(dto) ?? normalizeTripId(trip),
+            title: dto?.title ?? dto?.tripTitle ?? dto?.name ?? "Untitled Trip",
+            city: dto?.city ?? dto?.tripCity ?? "Unknown City",
+            country: dto?.country ?? dto?.tripCountry ?? "Unknown Country",
+            startDate: dto?.startDate ?? dto?.start_date ?? dto?.tripStartDate ?? "",
+            endDate: dto?.endDate ?? dto?.end_date ?? dto?.tripEndDate ?? "",
+            description: dto?.description ?? dto?.notes ?? dto?.tripDescription ?? "",
+            tripPhotos: Array.isArray(dto?.tripPhotos) ? dto.tripPhotos : Array.isArray(dto?.photos) ? dto.photos : [],
+            isLiked: likeState.isLiked,
+            likeId: likeState.likeId,
+            likeCount: resolveTripLikeCount(dto),
+        };
+    };
+
+    const extractPhotoUrl = (photo) => {
+        if (!photo) return null;
+        if (typeof photo === "string") return photo;
+        return photo.url ?? photo.photoUrl ?? photo.imageUrl ?? photo.src ?? null;
+    };
+
+    const loadSelectedUserTrips = async (userId) => {
+        if (!userId) return;
+        setSelectedUserTripsLoading(true);
+        setSelectedUserTripsError("");
+        setSelectedUserTrips([]);
+
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${USER_TRIPS_URL}/${encodeURIComponent(userId)}`, {
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+
+            if (!response.ok) {
+                setSelectedUserTripsError(data.message || `Could not load trips (${response.status}).`);
+                return;
+            }
+
+            setSelectedUserTrips(extractTrips(data).map(mapTrip));
+        } catch {
+            setSelectedUserTripsError("An error occurred while loading this user's trips.");
+        } finally {
+            setSelectedUserTripsLoading(false);
+        }
+    };
+
+    const handleViewProfile = (user) => {
+        setSelectedTrip(null);
+        setTripLikeError("");
+        setSelectedUser(user);
+        const userId = getUserId(user);
+        loadSelectedUserStats(userId);
+        loadSelectedUserTrips(userId);
+    };
+
+    const handleViewTrip = (trip) => {
+        setTripLikeError("");
+        setSelectedTrip(trip);
+        const tripId = normalizeId(trip?.id);
+        if (tripId) {
+            loadTripLikes(tripId);
+        }
+    };
+
+    const extractLikeIdFromResponse = (data) => {
+        return (
+            normalizeId(data?.likeId) ??
+            normalizeId(data?.id) ??
+            normalizeId(data?.like?.id) ??
+            normalizeId(data?.data?.id) ??
+            normalizeId(data?.result?.id) ??
+            null
+        );
+    };
+
+    const loadTripLikes = async (tripId) => {
+        const normalizedTripId = normalizeId(tripId);
+        if (!normalizedTripId) return;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        const currentUserId = getUserId(profile);
+
+        try {
+            const response = await fetch(
+                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(normalizedTripId)}/likes`,
+                {
+                    headers: {
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                    },
+                }
+            );
+            const data = await parseApiResponse(response);
+            if (!response.ok) return;
+
+            const likes = getTripLikesFromResponse(data);
+            const matchedLike = likes.find((like) => getTripLikeUserId(like) === currentUserId);
+            const isLiked = Boolean(matchedLike);
+            const likeId = getTripLikeId(matchedLike);
+            const likeCount = resolveTripLikeCountFromResponse(data);
+
+            setSelectedTrip((prev) => {
+                if (!prev || normalizeId(prev.id) !== normalizedTripId) return prev;
+                return {
+                    ...prev,
+                    isLiked,
+                    likeId: likeId ?? null,
+                    likeCount,
+                };
+            });
+
+            setSelectedUserTrips((prev) =>
+                prev.map((trip) =>
+                    normalizeId(trip.id) === normalizedTripId
+                        ? {
+                            ...trip,
+                            isLiked,
+                            likeId: likeId ?? null,
+                            likeCount,
+                        }
+                        : trip
+                )
+            );
+        } catch {
+            // Keep existing local like data on fetch failure.
+        }
+    };
+
+    const toggleTripLike = async () => {
+        if (tripLikeLoading || !selectedTrip) return;
+        const tripId = normalizeId(selectedTrip.id);
+        if (!tripId) {
+            setTripLikeError("Cannot update like for this trip: missing trip id.");
+            return;
+        }
+
+        const currentlyLiked = selectedTrip.isLiked === true;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        setTripLikeLoading(true);
+        setTripLikeError("");
+
+        try {
+            let response;
+            if (currentlyLiked) {
+                if (!selectedTrip.likeId) {
+                    setTripLikeError("Cannot dislike this trip: missing like id.");
+                    return;
+                }
+                response = await fetch(
+                    `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/likes/${encodeURIComponent(selectedTrip.likeId)}`,
+                    {
+                        method: "DELETE",
+                        headers: {
+                            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                        },
+                    }
+                );
+            } else {
+                response = await fetch(
+                    `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/likes`,
+                    {
+                        method: "POST",
+                        headers: {
+                            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                        },
+                    }
+                );
+            }
+
+            const data = await parseApiResponse(response);
+            if (!response.ok) {
+                setTripLikeError(data.message || "Could not update trip like state.");
+                return;
+            }
+
+            const responseLikeId = extractLikeIdFromResponse(data);
+            const nextIsLiked = !currentlyLiked;
+
+            setSelectedTrip((prev) => {
+                if (!prev || normalizeId(prev.id) !== tripId) return prev;
+                return {
+                    ...prev,
+                    isLiked: nextIsLiked,
+                    likeId: nextIsLiked ? (responseLikeId ?? prev.likeId ?? null) : null,
+                    likeCount: Math.max(0, (prev.likeCount ?? 0) + (nextIsLiked ? 1 : -1)),
+                };
+            });
+
+            setSelectedUserTrips((prev) =>
+                prev.map((trip) => {
+                    if (normalizeId(trip.id) !== tripId) return trip;
+                    return {
+                        ...trip,
+                        isLiked: nextIsLiked,
+                        likeId: nextIsLiked ? (responseLikeId ?? trip.likeId ?? null) : null,
+                        likeCount: Math.max(0, (trip.likeCount ?? 0) + (nextIsLiked ? 1 : -1)),
+                    };
+                })
+            );
+            loadTripLikes(tripId);
+        } catch {
+            setTripLikeError("An error occurred while updating trip like state.");
+        } finally {
+            setTripLikeLoading(false);
+        }
+    };
 
     const loadProfile = async () => {
         setProfileLoading(true);
@@ -162,7 +483,6 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
     const loadSelectedUserStats = async (userId) => {
         if (!userId) return;
-        setSelectedUserStatsLoading(true);
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
             const headers = {
@@ -205,8 +525,6 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             );
         } catch {
             // Keep existing counts if request fails.
-        } finally {
-            setSelectedUserStatsLoading(false);
         }
     };
 
@@ -276,6 +594,10 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         setSearchError("");
         setSearchResults([]);
         setSelectedUser(null);
+        setSelectedUserTrips([]);
+        setSelectedUserTripsError("");
+        setSelectedTrip(null);
+        setTripLikeError("");
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
@@ -358,6 +680,71 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             user?.followedByCurrentUser === true ||
             (userId != null && followedUserIds.includes(userId))
         );
+    };
+
+    const toggleFollowUser = async () => {
+        if (followLoading || !selectedUser) return;
+        const targetUserId = getUserId(selectedUser);
+        if (!targetUserId) {
+            setSearchError("Cannot follow this user: missing user id.");
+            return;
+        }
+
+        const authToken = normalizeToken(localStorage.getItem("token"));
+        const isCurrentlyFollowing = getIsFollowing(selectedUser);
+        setFollowLoading(true);
+        setSearchError("");
+
+        try {
+            const response = await fetch(`${BASE_URL}/nomadTrack/follows/${targetUserId}`, {
+                method: isCurrentlyFollowing ? "DELETE" : "POST",
+                headers: {
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+
+            if (!response.ok) {
+                setSearchError(data.message || "Could not update follow state.");
+                return;
+            }
+
+            const nextFollowing = !isCurrentlyFollowing;
+            setSelectedUser((prev) =>
+                prev
+                    ? {
+                        ...prev,
+                        isFollowing: nextFollowing,
+                        following: nextFollowing,
+                        followedByCurrentUser: nextFollowing,
+                        followerCount: Math.max(0, resolveFollowerCount(prev) + (nextFollowing ? 1 : -1)),
+                    }
+                    : prev
+            );
+            setSearchResults((prev) =>
+                prev.map((user) =>
+                    getUserId(user) === targetUserId
+                        ? {
+                            ...user,
+                            isFollowing: nextFollowing,
+                            following: nextFollowing,
+                            followedByCurrentUser: nextFollowing,
+                            followerCount: Math.max(0, resolveFollowerCount(user) + (nextFollowing ? 1 : -1)),
+                        }
+                        : user
+                )
+            );
+            setFollowedUserIds((prev) =>
+                nextFollowing
+                    ? (prev.includes(targetUserId) ? prev : [...prev, targetUserId])
+                    : prev.filter((id) => id !== targetUserId)
+            );
+            loadMyFollowStats();
+        } catch {
+            setSearchError("An error occurred while updating follow state.");
+        } finally {
+            setFollowLoading(false);
+        }
     };
 
     const beginEdit = (field) => {
@@ -450,122 +837,132 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         }
     };
 
-    const toggleFollowUser = async () => {
-        if (followLoading) return;
-        const targetUserId = getUserId(selectedUser);
-        if (!targetUserId) {
-            setSearchError("Cannot follow this user: missing user id.");
-            return;
-        }
-
-        const authToken = normalizeToken(localStorage.getItem("token"));
-        const isCurrentlyFollowing = getIsFollowing(selectedUser);
-
-        setFollowLoading(true);
-        setSearchError("");
-
-        try {
-            const response = await fetch(`${BASE_URL}/nomadTrack/follows/${targetUserId}`, {
-                method: isCurrentlyFollowing ? "DELETE" : "POST",
-                headers: {
-                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-                },
-            });
-
-            const rawText = await response.text();
-            let data = {};
-            try {
-                data = rawText ? JSON.parse(rawText) : {};
-            } catch {
-                data = { message: rawText };
-            }
-
-            if (!response.ok) {
-                setSearchError(data.message || "Could not update follow state.");
-                return;
-            }
-
-            const nextFollowing = !isCurrentlyFollowing;
-            setSelectedUser((prev) =>
-                prev
-                    ? {
-                        ...prev,
-                        isFollowing: nextFollowing,
-                        following: nextFollowing,
-                        followedByCurrentUser: nextFollowing,
-                        followerCount: Math.max(0, resolveFollowerCount(prev) + (nextFollowing ? 1 : -1)),
-                    }
-                    : prev
-            );
-            setSearchResults((prev) =>
-                prev.map((user) =>
-                    getUserId(user) === targetUserId
-                        ? {
-                            ...user,
-                            isFollowing: nextFollowing,
-                            following: nextFollowing,
-                            followedByCurrentUser: nextFollowing,
-                            followerCount: Math.max(0, resolveFollowerCount(user) + (nextFollowing ? 1 : -1)),
-                        }
-                        : user
-                )
-            );
-            setFollowedUserIds((prev) =>
-                nextFollowing
-                    ? (prev.includes(targetUserId) ? prev : [...prev, targetUserId])
-                    : prev.filter((id) => id !== targetUserId)
-            );
-            loadMyFollowStats();
-        } catch (err) {
-            setSearchError("An error occurred while updating follow state.");
-        } finally {
-            setFollowLoading(false);
-        }
-    };
-
     return (
         <div className="auth-page">
             <Header isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
-            <main className="auth-main">
-                <div className="dashboard-layout">
-                    <div className="login-container dashboard-card">
-                        <h2 className="search-panel-title"><span className="nomad-blue">Nomad </span> Search</h2>
-                        <form onSubmit={handleSearch}>
-                            <input
-                                type="text"
-                                placeholder="Search by first name"
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                                required
-                            />
-                            <button type="submit">{searchLoading ? "Searching..." : "Search"}</button>
-                        </form>
-                        {searchError && <p className="error">{searchError}</p>}
-                        <div className="search-results-list">
-                            {!searchLoading && searchResults.length === 0 && <p>No matching users yet.</p>}
-                            {searchResults.map((user) => (
-                                <div
-                                    className={`search-result-item ${getUserId(selectedUser) === getUserId(user) ? "search-result-item-active" : ""}`}
-                                    key={getUserId(user) ?? `${user.email}-${user.firstName}`}
-                                    onClick={() => {
-                                        setSelectedUser(user);
-                                        loadSelectedUserStats(getUserId(user));
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") setSelectedUser(user);
-                                    }}
-                                >
-                                    <p className="search-result-name">
-                                        {[user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed User"}
-                                    </p>
-                                    {user.email && <p className="search-result-meta">{user.email}</p>}
+            <main className={`auth-main ${selectedTrip ? "auth-main-top dashboard-trip-mode" : ""}`}>
+                <div className={`dashboard-layout ${selectedTrip ? "dashboard-layout-trip-mode" : ""}`}>
+                    {selectedTrip ? (
+                        <>
+                            <div className="login-container dashboard-card trip-details-pane">
+                                <h2 className="profile-title" style={{ color: "white" }}>Trip Details</h2>
+                                <div className="profile-section searched-user-profile-section trip-details-main-panel">
+                                    <div className="profile-row">
+                                        <span className="profile-label">Title</span>
+                                        <span className="profile-value">{selectedTrip.title || "N/A"}</span>
+                                    </div>
+                                    <div className="profile-row">
+                                        <span className="profile-label">Country</span>
+                                        <span className="profile-value">{selectedTrip.country || "N/A"}</span>
+                                    </div>
+                                    <div className="profile-row">
+                                        <span className="profile-label">City</span>
+                                        <span className="profile-value">{selectedTrip.city || "N/A"}</span>
+                                    </div>
+                                    <div className="profile-row">
+                                        <span className="profile-label">Start Date</span>
+                                        <span className="profile-value">{formatDate(selectedTrip.startDate)}</span>
+                                    </div>
+                                    <div className="profile-row">
+                                        <span className="profile-label">End Date</span>
+                                        <span className="profile-value">{formatDate(selectedTrip.endDate)}</span>
+                                    </div>
+                                    <div className="profile-row profile-row-notes">
+                                        <span className="profile-label">Notes</span>
+                                        <span className="profile-value">{selectedTrip.description || "N/A"}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="text-action-button"
+                                        onClick={() => {
+                                            setTripLikeError("");
+                                            setSelectedTrip(null);
+                                        }}
+                                    >
+                                        Back To User Profile
+                                    </button>
                                 </div>
-                            ))}
-                        </div>
-                        {selectedUser && (
-                            <div className="searched-user-profile">
+                            </div>
+                            <div className="login-container dashboard-card trip-extras-pane">
+                                <h2 className="profile-title" style={{ color: "white" }}>Trip Activity</h2>
+                                <div className="profile-section searched-user-profile-section trip-details-extras trip-details-extras-panel">
+                                    <h3 className="searched-user-trips-title">Trip Photos</h3>
+                                    <div className="trip-photos-grid">
+                                        {(selectedTrip.tripPhotos || [])
+                                            .map((photo) => extractPhotoUrl(photo))
+                                            .filter(Boolean)
+                                            .slice(0, 6)
+                                            .map((photoUrl) => (
+                                                <img key={photoUrl} src={photoUrl} alt="Trip" className="trip-photo-item" />
+                                            ))}
+                                        {(!Array.isArray(selectedTrip.tripPhotos) || selectedTrip.tripPhotos.length === 0) && (
+                                            <p className="trip-placeholder-text">No trip photos available yet.</p>
+                                        )}
+                                    </div>
+                                    <div className="trip-comments-header">
+                                        <h3 className="searched-user-trips-title">Comments</h3>
+                                    </div>
+                                    <p className="trip-like-summary">
+                                        Likes: {selectedTrip.likeCount ?? 0}
+                                    </p>
+                                    <div className="trip-comments-list">
+                                        <p className="trip-placeholder-text">Comments will be shown here.</p>
+                                    </div>
+                                    <div className="trip-feedback-actions">
+                                        <button type="button" onClick={toggleTripLike} disabled={tripLikeLoading}>
+                                            {tripLikeLoading
+                                                ? "Updating..."
+                                                : selectedTrip.isLiked
+                                                    ? "Dislike"
+                                                    : "Like"}
+                                        </button>
+                                        <button type="button" className="text-action-button">Comment</button>
+                                    </div>
+                                    {tripLikeError && <p className="error">{tripLikeError}</p>}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="login-container dashboard-card">
+                                <h2 className="search-panel-title"><span className="nomad-blue">Nomad </span> Search</h2>
+                                <form onSubmit={handleSearch}>
+                                    <input
+                                        type="text"
+                                        placeholder="Search by first name"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        required
+                                    />
+                                    <button type="submit">{searchLoading ? "Searching..." : "Search"}</button>
+                                </form>
+                                {searchError && <p className="error">{searchError}</p>}
+                                <div className="search-results-list">
+                                    {!searchLoading && searchResults.length === 0 && <p>No matching users yet.</p>}
+                                    {searchResults.map((user) => (
+                                        <div
+                                            className={`search-result-item search-result-row ${getUserId(selectedUser) === getUserId(user) ? "search-result-item-active" : ""}`}
+                                            key={getUserId(user) ?? `${user.email}-${user.firstName}`}
+                                        >
+                                            <div>
+                                                <p className="search-result-name">
+                                                    {[user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed User"}
+                                                </p>
+                                                {user.email && <p className="search-result-meta">{user.email}</p>}
+                                            </div>
+                                            <button type="button" className="view-profile-button" onClick={() => handleViewProfile(user)}>
+                                                View Profile
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className={`login-container dashboard-card profile-card ${selectedUser ? "profile-card-viewing-user" : ""}`}>
+                                <h2 className="profile-title" style={{ color: "white" }}>{selectedUser ? "User Profile" : "Profile"}</h2>
+                                {!selectedUser && profileLoading && <p>Loading profile...</p>}
+                                {!selectedUser && profileError && <p className="error">{profileError}</p>}
+                                {selectedUser && (
+                            <div className="profile-section searched-user-profile-section">
                                 <div className="searched-user-header">
                                     {selectedUser.avatarUrl ? (
                                         <img
@@ -587,32 +984,75 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                         </div>
                                     </div>
                                 </div>
-                                <p className="searched-user-name">
-                                    {[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(" ") || "Unnamed User"}
-                                </p>
-                                <p className="searched-user-meta">ID: {getUserId(selectedUser) ?? "N/A"}</p>
-                                <p className="searched-user-bio">{selectedUser.bio || "No bio provided yet."}</p>
-                                <button
-                                    type="button"
-                                    className="follow-button"
-                                    onClick={toggleFollowUser}
-                                    disabled={followLoading}
-                                >
-                                    {followLoading
-                                        ? "Updating..."
-                                        : getIsFollowing(selectedUser)
-                                            ? "Unfollow"
-                                            : "Follow"}
-                                </button>
+                                <div className="profile-row">
+                                    <span className="profile-label">ID</span>
+                                    <span className="profile-value">{getUserId(selectedUser) ?? "N/A"}</span>
+                                </div>
+                                <div className="profile-row">
+                                    <span className="profile-label">First Name</span>
+                                    <span className="profile-value">{selectedUser.firstName || "N/A"}</span>
+                                </div>
+                                <div className="profile-row">
+                                    <span className="profile-label">Last Name</span>
+                                    <span className="profile-value">{selectedUser.lastName || "N/A"}</span>
+                                </div>
+                                <div className="profile-row">
+                                    <span className="profile-label">Bio</span>
+                                    <span className="profile-value">{selectedUser.bio || "No bio provided yet."}</span>
+                                </div>
+                                <div className="searched-user-actions">
+                                    <button
+                                        type="button"
+                                        className="follow-button"
+                                        onClick={toggleFollowUser}
+                                        disabled={followLoading}
+                                    >
+                                        {followLoading
+                                            ? "Updating..."
+                                            : getIsFollowing(selectedUser)
+                                                ? "Unfollow"
+                                                : "Follow"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="text-action-button"
+                                        onClick={() => {
+                                            setSelectedTrip(null);
+                                            setTripLikeError("");
+                                            setSelectedUser(null);
+                                            setSelectedUserTrips([]);
+                                            setSelectedUserTripsError("");
+                                        }}
+                                    >
+                                        Back To My Profile
+                                    </button>
+                                </div>
+                                <div className="searched-user-trips searched-user-trips-large">
+                                    <h3 className="searched-user-trips-title">Trips</h3>
+                                    {selectedUserTripsLoading && <p>Loading trips...</p>}
+                                    {selectedUserTripsError && <p className="error">{selectedUserTripsError}</p>}
+                                    {!selectedUserTripsLoading && selectedUserTrips.length === 0 && !selectedUserTripsError && (
+                                        <p>No trips found for this user.</p>
+                                    )}
+                                    {!selectedUserTripsLoading && selectedUserTrips.length > 0 && (
+                                        <div className="searched-user-trip-list">
+                                            {selectedUserTrips.map((trip) => (
+                                                <div className="searched-user-trip-item" key={trip.id ?? `${trip.title}-${trip.city}-${trip.country}`}>
+                                                    <div>
+                                                        <p className="trip-list-title">{trip.title}</p>
+                                                        <p className="trip-list-meta">{trip.city}, {trip.country}</p>
+                                                    </div>
+                                                    <button type="button" className="view-profile-button" onClick={() => handleViewTrip(trip)}>
+                                                        View
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-
-                    <div className="login-container dashboard-card profile-card">
-                        <h2 className="profile-title" style={{ color: "white" }}>Profile</h2>
-                        {profileLoading && <p>Loading profile...</p>}
-                        {profileError && <p className="error">{profileError}</p>}
-                        {!profileLoading && profile && (
+                                )}
+                                {!selectedUser && !profileLoading && profile && (
                             <div className="profile-section">
                                 <div className="profile-avatar-wrap">
                                     {profile.avatarUrl ? (
@@ -733,8 +1173,10 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                     );
                                 })}
                             </div>
-                        )}
-                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             </main>
             <Footer />
