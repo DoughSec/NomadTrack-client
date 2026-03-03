@@ -7,6 +7,8 @@ const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
 const USERS_ME_URL = `${BASE_URL}/nomadTrack/users/me`;
 const FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows/following`;
 const FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows/followers`;
+const USER_FOLLOWING_URL = `${BASE_URL}/nomadTrack/follow`;
+const USER_FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows`;
 const USER_TRIPS_URL = `${BASE_URL}/nomadTrack/trips/user`;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
@@ -734,8 +736,8 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             };
 
             const [followersRes, followingRes] = await Promise.all([
-                fetch(`${FOLLOWERS_URL}/${userId}`, { headers }),
-                fetch(`${FOLLOWING_URL}/${userId}`, { headers }),
+                fetch(`${USER_FOLLOWERS_URL}/${userId}/followers`, { headers }),
+                fetch(`${USER_FOLLOWING_URL}/${userId}/following`, { headers }),
             ]);
 
             const [followersData, followingData] = await Promise.all([
