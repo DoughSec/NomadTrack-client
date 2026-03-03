@@ -1,0 +1,1242 @@
+{
+  "info": {
+    "_postman_id": "04629a92-5e07-4b38-9fb3-60834dcf66fd",
+    "name": "NomadTrack API",
+    "description": "NomadTrack REST API collection. Base path: /nomadTrack. Uses JWT Bearer auth; run Auth/Login to set {{jwt}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "38348617",
+    "_collection_link": "https://go.postman.co/collection/38348617-04629a92-5e07-4b38-9fb3-60834dcf66fd?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"test3\",\n  \"lastName\": \"test3\",\n  \"email\": \"test3@gmail.com\",\n  \"password\": \"test3\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Create a new user account."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (sets {{jwt}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data.accessToken) {",
+                  "    pm.collectionVariables.set('jwt', data.accessToken);",
+                  "  }",
+                  "} catch (e) {}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"addisondoseck@gmail.com\",\n  \"password\": \"Blast312\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login and receive JWT access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Returns the current authenticated user's profile."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update My Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDQxNjQ0LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA0NTI0NH0.DeqNql9Z5yETjl8YBLqngR0jwyuy4qQq215MPke4i4Q",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex Nomad\",\n  \"lastName\": \"test4\",\n  \"bio\": \"Remote dev exploring the world\",\n  \"avatarUrl\": \"https://.../avatar.png\",\n  \"address\": \"1999 main st\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Update profile fields."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Profile by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/users/search/{{firstName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "users",
+                "search",
+                "{{firstName}}"
+              ]
+            },
+            "description": "Get another user's public profile by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/users/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "users",
+                "search"
+              ]
+            },
+            "description": "Search public users. Query params: q, country, city, page, size."
+          },
+          "response": []
+        },
+        {
+          "name": "Get by User Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Get Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "users"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Trips",
+      "item": [
+        {
+          "name": "List My Trips",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips"
+              ]
+            },
+            "description": "List authenticated user's trips. Query params: page, size, sort."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Trip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"test8\",\n  \"city\": \"Shinjuku\",\n  \"country\": \"Japan\",\n  \"startDate\": \"2026-07-01\",\n  \"endDate\": \"2026-07-30\",\n  \"notes\": \"Great FOOOD.\",\n  \"latitude\": 38.7223,\n  \"longitude\": -9.1393,\n  \"visibility\": \"PUBLIC\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips"
+              ]
+            },
+            "description": "Create a new trip (journal entry)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trip By name",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/{{countryName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "{{countryName}}"
+              ]
+            },
+            "description": "Get a trip by id (owner or allowed by visibility)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Trip",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDQ1NTI2LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA0OTEyNn0.YX4SkWPkA1RxFYQDO9IjwS_lV1k6fqm-i_xkE1O_cJc",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Summer in Lisbon\",\n  \"city\": \"Lisbon\",\n  \"country\": \"Portugal\",\n  \"startDate\": \"2026-06-03\",\n  \"endDate\": \"2026-06-30\",\n  \"notes\": \"Updated notes\",\n  \"latitude\": 38.7223,\n  \"longitude\": -9.1393,\n  \"visibility\": \"PUBLIC\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Update a trip by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Trip",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDQ5MjEzLCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA1MjgxM30.oyrqMOlNrEt9gOeYe8V2dNuDs6BkQGUAG__-UhZBZ0s",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Delete a trip by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Map Locations (pins)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/map/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "map",
+                "locations"
+              ]
+            },
+            "description": "Returns simplified trip locations for map pins."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Trip Photos",
+      "item": [
+        {
+          "name": "List Photos for Trip",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDc0OTU3LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA3ODU1N30.ajzxKfFm_xPxVfWMcD-m7i3YS_XfRt3VB9mjUy_bzw8",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "{{tripId}}",
+                "photos"
+              ]
+            },
+            "description": "List photos for a trip."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Photo to Trip (multipart)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDc3MDI1LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA4MDYyNX0.5Pslqq3rNMWxqa0INhDJIi-eOzcjCbPeshJxdPzv7zc",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"url\": \"https:/...com\",\r\n    \"caption\": \"test2\",\r\n    \"sortOrder\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "{{tripId}}",
+                "photos"
+              ]
+            },
+            "description": "Upload a photo file for a trip. Server stores in S3/Cloudinary/etc and returns URL."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/trips/photos/{{photoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "trips",
+                "photos",
+                "{{photoId}}"
+              ]
+            },
+            "description": "Delete a photo from a trip."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Wishlists",
+      "item": [
+        {
+          "name": "List Wishlists",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/wishlists",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "wishlists"
+              ]
+            },
+            "description": "List travel goals for authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Wishlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Visit the world\",\n  \"description\": \"We love tokyo\",\n  \"targetCountry\": \"Japan\",\n  \"targetCity\": \"testCity2\",\n  \"deadline\": \"2026-12-31\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/wishlists",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "wishlists"
+              ]
+            },
+            "description": "Create a new travel goal."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wishlist By name",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/wishlists/{{targetCountry}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "wishlists",
+                "{{targetCountry}}"
+              ]
+            },
+            "description": "Get a goal by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Wishlist",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDc0OTU3LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA3ODU1N30.ajzxKfFm_xPxVfWMcD-m7i3YS_XfRt3VB9mjUy_bzw8",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Visit 10 countries in 2026\",\n  \"description\": \"Updated\",\n  \"targetCountry\": \"updateTest\",\n  \"targetCity\": \"cityUpdateTest\",\n  \"deadline\": \"2026-12-31\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/wishlists/{{wishlistId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "wishlists",
+                "{{wishlistId}}"
+              ]
+            },
+            "description": "Update goal fields."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Wishlist Complete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDc0OTU3LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA3ODU1N30.ajzxKfFm_xPxVfWMcD-m7i3YS_XfRt3VB9mjUy_bzw8",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completed\": true\n}   "
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/wishlists/{{wishlistId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "wishlists",
+                "{{wishlistId}}",
+                "complete"
+              ]
+            },
+            "description": "Mark goal as achieved."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Wishlist",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/wishlists/{{wishlistId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "wishlists",
+                "{{wishlistId}}"
+              ]
+            },
+            "description": "Delete a goal."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Social",
+      "item": [
+        {
+          "name": "Follows",
+          "item": [
+            {
+              "name": "Follow User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/follows/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "follows",
+                    "{{userId}}"
+                  ]
+                },
+                "description": "Follow a user."
+              },
+              "response": []
+            },
+            {
+              "name": "Unfollow User",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/follows/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "follows",
+                    "{{userId}}"
+                  ]
+                },
+                "description": "Unfollow a user."
+              },
+              "response": []
+            },
+            {
+              "name": "List My Following",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/follows/following",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "follows",
+                    "following"
+                  ]
+                },
+                "description": "List users I follow."
+              },
+              "response": []
+            },
+            {
+              "name": "List My Followers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/follows/followers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "follows",
+                    "followers"
+                  ]
+                },
+                "description": "List users who follow me."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Searched user's following",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/follows/{{userId}}/following",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "follows",
+                    "{{userId}}",
+                    "following"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Searched user's followers",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/follows/{{userId}}/followers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "follows",
+                    "{{userId}}",
+                    "followers"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Likes",
+          "item": [
+            {
+              "name": "Like a Trip",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/likes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "likes"
+                  ]
+                },
+                "description": "Like a trip."
+              },
+              "response": []
+            },
+            {
+              "name": "Unlike a Trip",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/likes/{{likeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "likes",
+                    "{{likeId}}"
+                  ]
+                },
+                "description": "Remove like from a trip."
+              },
+              "response": []
+            },
+            {
+              "name": "List Trip Likes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/likes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "likes"
+                  ]
+                },
+                "description": "List likes for a trip (public)."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Comments",
+          "item": [
+            {
+              "name": "List Trip Comments",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/comments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "comments"
+                  ]
+                },
+                "description": "List comments for a trip (public if trip is visible)."
+              },
+              "response": []
+            },
+            {
+              "name": "Add Comment to Trip",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNzcyMDc4Njc3LCJzdWIiOiJmaXJzdGxhc3RAZ21haWwuY29tIiwiaXNzIjoibm9tYWRUcmFjayIsImV4cCI6MTc3MjA4MjI3N30.tsiBBenimcF9bqOz4bH4Ml6ciCWhkW-7lRQ8RNGuvOU",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"comment\": \"nice\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/comments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "comments"
+                  ]
+                },
+                "description": "Add a comment to a trip."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Comment",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"comment\": \"Updated comment text\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/comments/{{commentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "comments",
+                    "{{commentId}}"
+                  ]
+                },
+                "description": "Update your comment."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Comment",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/nomadTrack/trips/{{tripId}}/comments/{{commentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "nomadTrack",
+                    "trips",
+                    "{{tripId}}",
+                    "comments",
+                    "{{commentId}}"
+                  ]
+                },
+                "description": "Delete your comment."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Discover",
+      "item": [
+        {
+          "name": "Discover Public Trips",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/discover/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "discover",
+                "trips"
+              ]
+            },
+            "description": "Browse public trips. Query params: q, country, city, fromDate, toDate, page, size."
+          },
+          "response": []
+        },
+        {
+          "name": "Discover Users Near Location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nomadTrack/discover/nearby",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nomadTrack",
+                "discover",
+                "nearby"
+              ]
+            },
+            "description": "Find public users near a location. Query params: lat, lng, radiusKm."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "jwt",
+      "value": ""
+    },
+    {
+      "key": "firstName",
+      "value": ""
+    },
+    {
+      "key": "countryName",
+      "value": ""
+    },
+    {
+      "key": "tripId",
+      "value": ""
+    },
+    {
+      "key": "photoId",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "targetCountry",
+      "value": ""
+    },
+    {
+      "key": "wishlistId",
+      "value": ""
+    },
+    {
+      "key": "likeId",
+      "value": ""
+    },
+    {
+      "key": "commentId",
+      "value": ""
+    }
+  ]
+}
