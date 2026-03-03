@@ -22,7 +22,7 @@ export default function GetStarted() {
 
                 <div className="get-started-buttons">
                     <button className="button" onClick={handleGetStarted}>Get Started</button>
-                    <button className="button">View Demo</button>
+                    {/* <button className="button">View Demo</button> */}
                 </div>
             </div>
 
