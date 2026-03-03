@@ -4,6 +4,7 @@ import Trips from './pages/Trips';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Wishlists from './pages/Wishlists';
+import Users from './pages/Users';
 import './App.css';
 import Hyperspeed from './bits/HyperSpeed';
 import { Navigate, Route, Routes } from "react-router-dom";
@@ -33,6 +34,10 @@ function App() {
         <Route
           path="/wishlists"
           element={isAuthenticated ? <Wishlists isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/users"
+          element={isAuthenticated ? <Users isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/login"

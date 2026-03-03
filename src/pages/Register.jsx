@@ -2,11 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
-
-const normalizeToken = (tokenValue) => {
-    if (!tokenValue || typeof tokenValue !== "string") return "";
-    return tokenValue.replace(/^Bearer\s+/i, "").trim();
-};
+import { getRoleFromToken, normalizeToken } from "../lib/auth";
 
 export default function Register(props) {
     const url = "http://localhost:8080/nomadTrack/auth/register";
@@ -33,16 +29,18 @@ export default function Register(props) {
                 const token = normalizeToken(data.token || data.accessToken || data.jwt || data.jwtToken);
                 if (!token) {
                     localStorage.removeItem("token");
+                    localStorage.removeItem("role");
                     setError("Registration succeeded but no token was returned.");
                     return;
                 }
                 localStorage.setItem("token", token);
+                localStorage.setItem("role", getRoleFromToken(token));
                 props.setUser?.(data.user);
                 navigate("/");
             } else {
                 setError(data.message || "Registration failed");
             }
-        } catch (err) {
+        } catch {
             setError("An error occurred. Please try again.");
         }
     };
