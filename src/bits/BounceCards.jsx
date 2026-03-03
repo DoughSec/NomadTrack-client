@@ -5,6 +5,8 @@ import './BounceCards.css';
 export default function BounceCards({
     className = '',
     images = [],
+    onRemoveImage = null,
+    removingImageIndex = null,
     containerWidth = 400,
     containerHeight = 400,
     animationDelay = 0.5,
@@ -135,6 +137,23 @@ export default function BounceCards({
                     onMouseLeave={resetSiblings}
                 >
                     <img className="image" src={src} alt={`card-${idx}`} />
+                    {typeof onRemoveImage === 'function' && (
+                        <button
+                            type="button"
+                            className="card-remove-button"
+                            onClick={event => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                if (removingImageIndex === idx) return;
+                                onRemoveImage(idx);
+                            }}
+                            disabled={removingImageIndex === idx}
+                            aria-label={`Delete image ${idx + 1}`}
+                            title="Delete photo"
+                        >
+                            {removingImageIndex === idx ? '...' : 'X'}
+                        </button>
+                    )}
                 </div>
             ))}
         </div>

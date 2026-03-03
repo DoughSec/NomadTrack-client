@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
 import BounceCards from "../bits/BounceCards";
+import { useImageUpload } from "../services/useImageUploads";
 
 const BASE_URL = "http://localhost:8080";
 const TRIPS_BASE_URL = `${BASE_URL}/nomadTrack/trips`;
@@ -12,6 +13,7 @@ const normalizeToken = (tokenValue) => {
 };
 
 export default function Trips({ isAuthenticated, setIsAuthenticated }) {
+    const { uploadAndPersistTripPhotos, deletePersistedTripPhoto } = useImageUpload();
     const [countryName, setCountryName] = useState("");
     const [newTripDraft, setNewTripDraft] = useState({
         title: "",
@@ -44,6 +46,12 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
     const [editingCommentText, setEditingCommentText] = useState("");
     const [commentActionLoadingId, setCommentActionLoadingId] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [selectedPhotoFiles, setSelectedPhotoFiles] = useState([]);
+    const [photoUploadLoading, setPhotoUploadLoading] = useState(false);
+    const [photoUploadError, setPhotoUploadError] = useState("");
+    const [photoUploadSuccess, setPhotoUploadSuccess] = useState("");
+    const [photoDeleteLoadingId, setPhotoDeleteLoadingId] = useState(null);
+    const [photoInputResetKey, setPhotoInputResetKey] = useState(0);
 
     const parseApiResponse = async (response) => {
         const rawText = await response.text();
@@ -104,18 +112,73 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         };
     };
 
+    const resolvePhotoUrl = (photo) => {
+        if (typeof photo === "string") return photo;
+        if (!photo || typeof photo !== "object") return "";
+        return (
+            photo.url ??
+            photo.photoUrl ??
+            photo.imageUrl ??
+            photo.src ??
+            photo.fileUrl ??
+            photo.tripPhotoUrl ??
+            photo.photoURL ??
+            photo.path ??
+            photo.image ??
+            photo.location ??
+            ""
+        );
+    };
+
+    const resolvePhotoId = (photo) => {
+        if (!photo || typeof photo !== "object") return null;
+        const candidate = photo.photoId ?? photo.id ?? photo.tripPhotoId ?? photo.trip_photo_id ?? null;
+        if (candidate == null) return null;
+        const normalized = String(candidate).trim();
+        return normalized || null;
+    };
+
+    const extractPhotosFromResponse = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.photos)) return data.photos;
+        if (Array.isArray(data?.tripPhotos)) return data.tripPhotos;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        if (data?.photo && typeof data.photo === "object") return [data.photo];
+        return [];
+    };
+
     const extractPhotoUrls = (trip) => {
         const photos = Array.isArray(trip?.tripPhotos) ? trip.tripPhotos : [];
         const urls = photos
-            .map((photo) => {
-                if (typeof photo === "string") return photo;
-                if (photo && typeof photo === "object") {
-                    return photo.url ?? photo.photoUrl ?? photo.imageUrl ?? photo.src ?? "";
-                }
-                return "";
-            })
+            .map((photo) => resolvePhotoUrl(photo))
             .filter((url) => typeof url === "string" && url.trim() !== "");
         return urls;
+    };
+
+    const extractPhotoItems = (trip) => {
+        const photos = Array.isArray(trip?.tripPhotos) ? trip.tripPhotos : [];
+        return photos
+            .map((photo, index) => {
+                if (typeof photo === "string") {
+                    return {
+                        photoId: null,
+                        url: photo,
+                        key: `url-${index}-${photo}`,
+                    };
+                }
+                if (!photo || typeof photo !== "object") return null;
+                const url = resolvePhotoUrl(photo);
+                if (!url) return null;
+                const photoId = resolvePhotoId(photo);
+                return {
+                    photoId,
+                    url,
+                    key: photoId ? `photo-${photoId}` : `url-${index}-${url}`,
+                };
+            })
+            .filter(Boolean);
     };
 
     const getTripLikesFromResponse = (data) => {
@@ -248,6 +311,45 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
             loadTripLikesCount(tripId),
             loadTripComments(tripId),
         ]);
+    };
+
+    const loadTripPhotos = async (tripId) => {
+        if (!tripId) return;
+        try {
+            const authToken = normalizeToken(localStorage.getItem("token"));
+            const response = await fetch(`${TRIPS_BASE_URL}/${encodeURIComponent(tripId)}/photos`, {
+                headers: {
+                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+            });
+            const data = await parseApiResponse(response);
+            if (!response.ok) return;
+
+            const photos = extractPhotosFromResponse(data);
+            const normalizedPhotos = photos
+                .map((photo) => {
+                    if (typeof photo === "string") return photo;
+                    if (!photo || typeof photo !== "object") return null;
+                    const url = resolvePhotoUrl(photo);
+                    return url ? { ...photo, url } : null;
+                })
+                .filter(Boolean);
+
+            setSelectedTrip((prev) => {
+                if (!prev || String(prev.id) !== String(tripId)) return prev;
+                return { ...prev, tripPhotos: normalizedPhotos };
+            });
+
+            setTripList((prev) =>
+                prev.map((trip) =>
+                    String(trip.id) === String(tripId)
+                        ? { ...trip, tripPhotos: normalizedPhotos }
+                        : trip
+                )
+            );
+        } catch {
+            // Keep existing trip photos when request fails.
+        }
     };
 
     const createTripComment = async () => {
@@ -526,7 +628,146 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         setIsEditing(false);
         cancelEditComment();
         setNewCommentText("");
+        setSelectedPhotoFiles([]);
+        setPhotoUploadError("");
+        setPhotoUploadSuccess("");
+        setPhotoDeleteLoadingId(null);
+        setPhotoInputResetKey((prev) => prev + 1);
+        loadTripPhotos(normalizedTrip.id);
         loadTripEngagement(normalizedTrip.id);
+    };
+
+    const handlePhotoFileChange = (event) => {
+        const nextFiles = Array.from(event?.target?.files ?? []);
+        setSelectedPhotoFiles(nextFiles);
+        setPhotoUploadError("");
+        setPhotoUploadSuccess("");
+    };
+
+    const handleUploadTripPhotos = async () => {
+        const tripId = normalizeTripId(selectedTrip) ?? normalizeTripId(resolveTripDto(selectedTrip));
+        if (!tripId) {
+            setPhotoUploadError("Select a valid trip before uploading photos.");
+            return;
+        }
+        if (selectedPhotoFiles.length === 0) {
+            setPhotoUploadError("Choose at least one image to upload.");
+            return;
+        }
+
+        setPhotoUploadLoading(true);
+        setPhotoUploadError("");
+        setPhotoUploadSuccess("");
+        setPhotoDeleteLoadingId(null);
+        try {
+            const currentPhotoCount = extractPhotoUrls(selectedTrip).length;
+            const { uploadedUrls, savedPhotos } = await uploadAndPersistTripPhotos(tripId, selectedPhotoFiles, {
+                startSortOrder: currentPhotoCount,
+            });
+            if (!Array.isArray(uploadedUrls) || uploadedUrls.length === 0) {
+                setPhotoUploadError("Upload succeeded but no image URLs were returned.");
+                return;
+            }
+
+            const persistedPhotoEntries =
+                Array.isArray(savedPhotos) && savedPhotos.length > 0
+                    ? savedPhotos
+                        .map((photo, index) => {
+                            if (!photo || typeof photo !== "object") {
+                                return { url: uploadedUrls[index] };
+                            }
+                            const resolvedUrl = resolvePhotoUrl(photo) || uploadedUrls[index] || "";
+                            return { ...photo, url: resolvedUrl };
+                        })
+                    : uploadedUrls.map((url) => ({ url }));
+
+            setSelectedTrip((prev) => {
+                if (!prev) return prev;
+                const nextTripPhotos = [
+                    ...(Array.isArray(prev.tripPhotos) ? prev.tripPhotos : []),
+                    ...persistedPhotoEntries,
+                ];
+                return { ...prev, tripPhotos: nextTripPhotos };
+            });
+
+            setTripList((prev) =>
+                prev.map((trip) => {
+                    if (String(trip.id) !== String(tripId)) return trip;
+                    return {
+                        ...trip,
+                        tripPhotos: [
+                            ...(Array.isArray(trip.tripPhotos) ? trip.tripPhotos : []),
+                            ...persistedPhotoEntries,
+                        ],
+                    };
+                })
+            );
+
+            setSelectedPhotoFiles([]);
+            setPhotoInputResetKey((prev) => prev + 1);
+            await loadTripPhotos(tripId);
+            setPhotoUploadSuccess(
+                `Uploaded ${uploadedUrls.length} image${uploadedUrls.length === 1 ? "" : "s"} to S3.`
+            );
+        } catch (uploadError) {
+            const message =
+                uploadError instanceof Error
+                    ? uploadError.message
+                    : "An error occurred while uploading images.";
+            setPhotoUploadError(message);
+        } finally {
+            setPhotoUploadLoading(false);
+        }
+    };
+
+    const handleDeleteTripPhoto = async (photoItem) => {
+        const tripId = normalizeTripId(selectedTrip) ?? normalizeTripId(resolveTripDto(selectedTrip));
+        if (!tripId) {
+            setPhotoUploadError("Select a valid trip before deleting photos.");
+            return;
+        }
+        if (!photoItem?.photoId) {
+            setPhotoUploadError("This photo cannot be deleted because it has no photo id.");
+            return;
+        }
+
+        setPhotoDeleteLoadingId(String(photoItem.photoId));
+        setPhotoUploadError("");
+        setPhotoUploadSuccess("");
+        try {
+            await deletePersistedTripPhoto(photoItem.photoId);
+            setSelectedTrip((prev) => {
+                if (!prev) return prev;
+                const currentPhotos = Array.isArray(prev.tripPhotos) ? prev.tripPhotos : [];
+                const nextTripPhotos = currentPhotos.filter(
+                    (photo) => String(resolvePhotoId(photo)) !== String(photoItem.photoId)
+                );
+                return { ...prev, tripPhotos: nextTripPhotos };
+            });
+
+            setTripList((prev) =>
+                prev.map((trip) => {
+                    if (String(trip.id) !== String(tripId)) return trip;
+                    const currentPhotos = Array.isArray(trip.tripPhotos) ? trip.tripPhotos : [];
+                    return {
+                        ...trip,
+                        tripPhotos: currentPhotos.filter(
+                            (photo) => String(resolvePhotoId(photo)) !== String(photoItem.photoId)
+                        ),
+                    };
+                })
+            );
+            await loadTripPhotos(tripId);
+            setPhotoUploadSuccess("Photo deleted.");
+        } catch (deleteError) {
+            const message =
+                deleteError instanceof Error
+                    ? deleteError.message
+                    : "An error occurred while deleting the photo.";
+            setPhotoUploadError(message);
+        } finally {
+            setPhotoDeleteLoadingId(null);
+        }
     };
 
     const handleSaveTrip = async () => {
@@ -609,12 +850,19 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
             setTripCommentsError("");
             setNewCommentText("");
             cancelEditComment();
+            setSelectedPhotoFiles([]);
+            setPhotoUploadError("");
+            setPhotoUploadSuccess("");
+            setPhotoDeleteLoadingId(null);
+            setPhotoInputResetKey((prev) => prev + 1);
         } catch {
             setProfileError("An error occurred while deleting this trip.");
         } finally {
             setDeleting(false);
         }
     };
+
+    const selectedPhotoItems = extractPhotoItems(selectedTrip);
 
     return (
         <div className="auth-page">
@@ -831,21 +1079,70 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
 
                         <div className="trips-photos-panel trips-photos-panel-compact">
                             <h3 className="trips-photos-title">Trip Photos</h3>
-                            {extractPhotoUrls(selectedTrip).length > 0 ? (
+                            <div className="trip-photo-upload-controls">
+                                <input
+                                    key={photoInputResetKey}
+                                    id={`trip-photo-upload-${photoInputResetKey}`}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handlePhotoFileChange}
+                                    className="trip-photo-upload-input-hidden"
+                                    disabled={photoUploadLoading}
+                                />
+                                <label
+                                    htmlFor={`trip-photo-upload-${photoInputResetKey}`}
+                                    className={`trip-photo-upload-button ${photoUploadLoading ? "trip-photo-upload-button-disabled" : ""}`}
+                                >
+                                    Choose File
+                                </label>
+                                <input
+                                    className="trip-photo-upload-input"
+                                    value={
+                                        selectedPhotoFiles.length > 0
+                                            ? `${selectedPhotoFiles.length} file${selectedPhotoFiles.length === 1 ? "" : "s"} selected`
+                                            : "No file selected"
+                                    }
+                                    readOnly
+                                />
+                                <button
+                                    type="button"
+                                    className="trip-photo-upload-button"
+                                    onClick={handleUploadTripPhotos}
+                                    disabled={photoUploadLoading || selectedPhotoFiles.length === 0}
+                                >
+                                    {photoUploadLoading ? "Uploading..." : "Upload Image"}
+                                </button>
+                            </div>
+                            {selectedPhotoFiles.length > 0 && (
+                                <p className="trip-photo-upload-meta">
+                                    Selected: {selectedPhotoFiles[0]?.name}
+                                </p>
+                            )}
+                            {photoUploadError && <p className="error">{photoUploadError}</p>}
+                            {photoUploadSuccess && <p className="trip-photo-upload-success">{photoUploadSuccess}</p>}
+                            {selectedPhotoItems.length > 0 ? (
                                 <BounceCards
                                     className="trips-bounce-cards"
-                                    images={extractPhotoUrls(selectedTrip)}
-                                    containerWidth={280}
-                                    containerHeight={210}
+                                    images={selectedPhotoItems.map((photo) => photo.url)}
+                                    onRemoveImage={(index) => {
+                                        const targetPhoto = selectedPhotoItems[index];
+                                        if (!targetPhoto) return;
+                                        handleDeleteTripPhoto(targetPhoto);
+                                    }}
+                                    removingImageIndex={selectedPhotoItems.findIndex(
+                                        (photo) => photo.photoId != null && String(photo.photoId) === String(photoDeleteLoadingId)
+                                    )}
+                                    containerWidth={420}
+                                    containerHeight={300}
                                     animationDelay={0.8}
                                     animationStagger={0.08}
                                     easeType="elastic.out(1, 0.5)"
                                     transformStyles={[
-                                        "rotate(5deg) translate(-110px)",
-                                        "rotate(0deg) translate(-55px)",
-                                        "rotate(-5deg)",
-                                        "rotate(5deg) translate(55px)",
-                                        "rotate(-5deg) translate(110px)",
+                                        "rotate(6deg) translate(-190px)",
+                                        "rotate(2deg) translate(-95px)",
+                                        "rotate(-3deg)",
+                                        "rotate(3deg) translate(95px)",
+                                        "rotate(-6deg) translate(190px)",
                                     ]}
                                     enableHover={false}
                                 />

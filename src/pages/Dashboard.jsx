@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
+import { useImageUpload } from "../services/useImageUploads";
 
 const BASE_URL = "http://localhost:8080";
 const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
@@ -41,6 +42,7 @@ const CheckIcon = () => (
 );
 
 export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
+    const { uploadImages } = useImageUpload();
     const [firstName, setFirstName] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -71,6 +73,10 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editingCommentText, setEditingCommentText] = useState("");
     const [commentActionLoadingId, setCommentActionLoadingId] = useState(null);
+    const [avatarFile, setAvatarFile] = useState(null);
+    const [avatarUploadLoading, setAvatarUploadLoading] = useState(false);
+    const [avatarUploadError, setAvatarUploadError] = useState("");
+    const [avatarInputResetKey, setAvatarInputResetKey] = useState(0);
     const getUserId = (user) => normalizeId(user?.id);
 
     const formatDate = (value) => {
@@ -630,18 +636,30 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
-            const response = await fetch(AUTH_ME_URL, {
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-                },
-            });
-            const rawText = await response.text();
+            const headers = {
+                "Content-Type": "application/json",
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            };
+
+            // Load full profile (including avatarUrl) from users/me first.
+            let response = await fetch(USERS_ME_URL, { headers });
+            let rawText = await response.text();
             let data = {};
             try {
                 data = rawText ? JSON.parse(rawText) : {};
             } catch {
                 data = { message: rawText };
+            }
+
+            // Backward-compatible fallback if users/me is unavailable.
+            if (!response.ok) {
+                response = await fetch(AUTH_ME_URL, { headers });
+                rawText = await response.text();
+                try {
+                    data = rawText ? JSON.parse(rawText) : {};
+                } catch {
+                    data = { message: rawText };
+                }
             }
 
             if (!response.ok) {
@@ -1009,8 +1027,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         setEditingField("");
     };
 
-    const saveField = async (field) => {
-        const nextValue = fieldDrafts[field] ?? "";
+    const saveProfileFieldValue = async (field, nextValue) => {
         setSavingField(field);
         setProfileError("");
 
@@ -1080,10 +1097,53 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                 setProfile((prev) => ({ ...prev, [field]: nextValue }));
             }
             setEditingField("");
+            return true;
         } catch (err) {
             setProfileError("An error occurred while updating profile.");
+            return false;
         } finally {
             setSavingField("");
+        }
+    };
+
+    const saveField = async (field) => {
+        const nextValue = fieldDrafts[field] ?? "";
+        await saveProfileFieldValue(field, nextValue);
+    };
+
+    const handleAvatarFileChange = (event) => {
+        const nextFile = event?.target?.files?.[0] ?? null;
+        setAvatarFile(nextFile);
+        setAvatarUploadError("");
+        setProfileError("");
+    };
+
+    const handleAvatarUpload = async () => {
+        if (!avatarFile) {
+            setAvatarUploadError("Choose an image before uploading.");
+            return;
+        }
+
+        setAvatarUploadLoading(true);
+        setAvatarUploadError("");
+        setProfileError("");
+        try {
+            const uploadedUrls = await uploadImages([avatarFile]);
+            const nextAvatarUrl = Array.isArray(uploadedUrls) ? uploadedUrls[0] : "";
+            if (!nextAvatarUrl) {
+                setAvatarUploadError("Avatar upload succeeded, but no image URL was returned.");
+                return;
+            }
+
+            const saved = await saveProfileFieldValue("avatarUrl", nextAvatarUrl);
+            if (!saved) return;
+
+            setAvatarFile(null);
+            setAvatarInputResetKey((prev) => prev + 1);
+        } catch {
+            setAvatarUploadError("An error occurred while uploading the avatar.");
+        } finally {
+            setAvatarUploadLoading(false);
         }
     };
 
@@ -1416,14 +1476,22 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                             ) : (
                                                 <div className="profile-avatar profile-avatar-placeholder">No Avatar</div>
                                             )}
-                                            <button
-                                                type="button"
-                                                className="icon-action-button avatar-edit-button"
-                                                onClick={() => beginEdit("avatarUrl")}
-                                                title="Edit Avatar"
+                                            <input
+                                                key={avatarInputResetKey}
+                                                id={`avatar-upload-${avatarInputResetKey}`}
+                                                type="file"
+                                                accept="image/*"
+                                                className="trip-photo-upload-input-hidden"
+                                                onChange={handleAvatarFileChange}
+                                                disabled={avatarUploadLoading}
+                                            />
+                                            <label
+                                                htmlFor={`avatar-upload-${avatarInputResetKey}`}
+                                                className={`icon-action-button avatar-edit-button ${avatarUploadLoading ? "trip-photo-upload-button-disabled" : ""}`}
+                                                title="Choose Avatar"
                                             >
                                                 <PencilIcon />
-                                            </button>
+                                            </label>
                                         </div>
                                         <div className="follow-stats profile-follow-stats">
                                             <div className="follow-stat">
@@ -1435,37 +1503,22 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                                                 <span className="follow-stat-label">Following</span>
                                             </div>
                                         </div>
-                                        {editingField === "avatarUrl" && (
-                                            <div className="profile-row">
-                                                <span className="profile-label">Image URL</span>
-                                                <input
-                                                    type="text"
-                                                    value={fieldDrafts.avatarUrl ?? ""}
-                                                    onChange={(e) =>
-                                                        setFieldDrafts((prev) => ({
-                                                            ...prev,
-                                                            avatarUrl: e.target.value,
-                                                        }))
-                                                    }
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="icon-action-button"
-                                                    onClick={() => saveField("avatarUrl")}
-                                                    title="Save Avatar"
-                                                    disabled={savingField === "avatarUrl"}
-                                                >
-                                                    <CheckIcon />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="text-action-button"
-                                                    onClick={cancelEdit}
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        )}
+                                        <div className="trip-photo-upload-controls">
+                                            <input
+                                                className="trip-photo-upload-input"
+                                                value={avatarFile ? avatarFile.name : "No file selected"}
+                                                readOnly
+                                            />
+                                            <button
+                                                type="button"
+                                                className="trip-photo-upload-button"
+                                                onClick={handleAvatarUpload}
+                                                disabled={avatarUploadLoading || !avatarFile}
+                                            >
+                                                {avatarUploadLoading ? "Uploading..." : "Upload Avatar"}
+                                            </button>
+                                        </div>
+                                        {avatarUploadError && <p className="error">{avatarUploadError}</p>}
 
                                         <div className="profile-row">
                                             <span className="profile-label">ID</span>
