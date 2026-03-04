@@ -3,7 +3,7 @@ import Header from "../component/Header";
 import Footer from "../component/Footer";
 import { useImageUpload } from "../services/useImageUploads";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = process.env.REACT_APP_API_URL;
 const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
 const FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows/following`;
 const FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows/followers`;

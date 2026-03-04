@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = process.env.REACT_APP_API_URL;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
     return tokenValue.replace(/^Bearer\s+/i, "").trim();

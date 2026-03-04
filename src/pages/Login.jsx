@@ -5,7 +5,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { getRoleFromToken, normalizeToken } from "../lib/auth";
 
 export default function Login(props) {
-    const url = "http://localhost:8080/nomadTrack/auth/login";
+    const BASE_URL = process.env.REACT_APP_API_URL;
+    const url = `${BASE_URL}/nomadTrack/auth/login`;
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
