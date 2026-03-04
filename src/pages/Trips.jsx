@@ -4,7 +4,7 @@ import Footer from "../component/Footer";
 import BounceCards from "../bits/BounceCards";
 import { useImageUpload } from "../services/useImageUploads";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = process.env.REACT_APP_API_URL;
 const TRIPS_BASE_URL = `${BASE_URL}/nomadTrack/trips`;
 const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
 const normalizeToken = (tokenValue) => {

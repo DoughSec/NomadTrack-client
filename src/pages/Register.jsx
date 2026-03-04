@@ -5,7 +5,8 @@ import Footer from "../component/Footer";
 import { getRoleFromToken, normalizeToken } from "../lib/auth";
 
 export default function Register(props) {
-    const url = "http://localhost:8080/nomadTrack/auth/register";
+    const BASE_URL = process.env.REACT_APP_API_URL;
+    const url = `${BASE_URL}/nomadTrack/auth/register`;
     const navigate = useNavigate();
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
