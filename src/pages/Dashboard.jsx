@@ -5,10 +5,9 @@ import { useImageUpload } from "../services/useImageUploads";
 
 const BASE_URL = "http://localhost:8080";
 const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
-const USERS_ME_URL = `${BASE_URL}/nomadTrack/users/me`;
 const FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows/following`;
 const FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows/followers`;
-const USER_FOLLOWING_URL = `${BASE_URL}/nomadTrack/follow`;
+const USER_FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows`;
 const USER_FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows`;
 const USER_TRIPS_URL = `${BASE_URL}/nomadTrack/trips/user`;
 const normalizeToken = (tokenValue) => {
@@ -641,25 +640,13 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                 ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
             };
 
-            // Load full profile (including avatarUrl) from users/me first.
-            let response = await fetch(USERS_ME_URL, { headers });
+            let response = await fetch(AUTH_ME_URL, { headers });
             let rawText = await response.text();
             let data = {};
             try {
                 data = rawText ? JSON.parse(rawText) : {};
             } catch {
                 data = { message: rawText };
-            }
-
-            // Backward-compatible fallback if users/me is unavailable.
-            if (!response.ok) {
-                response = await fetch(AUTH_ME_URL, { headers });
-                rawText = await response.text();
-                try {
-                    data = rawText ? JSON.parse(rawText) : {};
-                } catch {
-                    data = { message: rawText };
-                }
             }
 
             if (!response.ok) {
@@ -1049,7 +1036,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             let data = {};
 
             for (const method of methodsToTry) {
-                response = await fetch(USERS_ME_URL, {
+                response = await fetch(AUTH_ME_URL, {
                     method,
                     headers: {
                         "Content-Type": "application/json",
