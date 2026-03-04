@@ -3,7 +3,7 @@ import Header from "../component/Header";
 import Footer from "../component/Footer";
 import { getRoleFromToken, isAdminRole, normalizeToken } from "../lib/auth";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = process.env.REACT_APP_API_URL;
 const USERS_URL = `${BASE_URL}/nomadTrack/users`;
 
 const parseApiResponse = async (response) => {

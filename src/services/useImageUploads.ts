@@ -13,7 +13,7 @@ type TripPhotoResponse = {
   [key: string]: unknown
 }
 
-const BASE_URL = 'http://localhost:8080'
+const BASE_URL = String(import.meta.env.VITE_API_URL ?? import.meta.env.REACT_APP_API_URL ?? '').replace(/\/+$/, '')
 
 const normalizeToken = (tokenValue: string | null | undefined): string => {
   if (!tokenValue || typeof tokenValue !== 'string') return ''
