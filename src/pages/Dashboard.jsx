@@ -6,6 +6,7 @@ import API_BASE_URL from "../lib/apiBaseUrl";
 
 const BASE_URL = API_BASE_URL;
 const AUTH_ME_URL = `${BASE_URL}/auth/me`;
+const USERS_ME_URL = `${BASE_URL}/users/me`;
 const FOLLOWING_URL = `${BASE_URL}/follows/following`;
 const FOLLOWERS_URL = `${BASE_URL}/follows/followers`;
 const USER_FOLLOWING_URL = `${BASE_URL}/follows`;
@@ -1037,7 +1038,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             let data = {};
 
             for (const method of methodsToTry) {
-                response = await fetch(AUTH_ME_URL, {
+                response = await fetch(USERS_ME_URL, {
                     method,
                     headers: {
                         "Content-Type": "application/json",
