@@ -46,7 +46,8 @@ pipeline {
           # Next.js style:
           export NEXT_PUBLIC_API_URL="${API_URL}"
 
-          npm run build
+          npm ci
+          npx vite build
         '''
       }
     }
