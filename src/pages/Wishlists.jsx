@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
+import API_BASE_URL from "../lib/apiBaseUrl";
 
-const BASE_URL = process.env.REACT_APP_API_URL;
+const BASE_URL = API_BASE_URL;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
     return tokenValue.replace(/^Bearer\s+/i, "").trim();
