@@ -3,10 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
 import { getRoleFromToken, normalizeToken } from "../lib/auth";
+import API_BASE_URL from "../lib/apiBaseUrl";
 
 export default function Register(props) {
-    const BASE_URL = process.env.REACT_APP_API_URL;
-    const url = `${BASE_URL}/nomadTrack/auth/register`;
+    const url = `${API_BASE_URL}/nomadTrack/auth/register`;
     const navigate = useNavigate();
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
