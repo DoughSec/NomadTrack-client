@@ -10,7 +10,6 @@ pipeline {
     AWS_REGION                 = 'us-east-2'
     FRONTEND_BUCKET            = 'nomadtrack-frontend-906ea42d'
     CLOUDFRONT_DISTRIBUTION_ID = 'E3CW1WFJSXVDH5'
-    NODE_ENV = 'production'
     API_URL = 'https://api.nomadtrack.net'
   }
 
@@ -30,37 +29,36 @@ pipeline {
       }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        sh '''
-          npm ci || npm install
-        '''
-      }
+  stage('Install Dependencies') {
+    steps {
+      sh '''
+        unset NODE_ENV || true
+        export NODE_ENV=development
+        npm ci --include=dev
+      '''
     }
+  }
 
-    stage('Build Frontend') {
-      steps {
-        sh '''
-          # CRA style:
-          export REACT_APP_API_URL="${API_URL}"
-          # Next.js style:
-          export NEXT_PUBLIC_API_URL="${API_URL}"
-
-          npm ci
-          npm run build
-        '''
-      }
+  stage('Build Frontend') {
+    steps {
+      sh '''
+        export REACT_APP_API_URL="${API_URL}"
+        export NEXT_PUBLIC_API_URL="${API_URL}"
+        npm run build
+      '''
     }
+  }
 
-    stage('Deploy to S3') {
-      steps {
-        sh '''
-          aws --version
-          aws s3 sync ./build "s3://${FRONTEND_BUCKET}" --delete --region "${AWS_REGION}" || \
-          aws s3 sync ./out "s3://${FRONTEND_BUCKET}" --delete --region "${AWS_REGION}"
-        '''
-      }
+  stage('Deploy to S3') {
+    steps {
+      sh '''
+        aws --version
+        aws s3 sync ./dist "s3://${FRONTEND_BUCKET}" --delete --region "${AWS_REGION}" || \
+        aws s3 sync ./build "s3://${FRONTEND_BUCKET}" --delete --region "${AWS_REGION}" || \
+        aws s3 sync ./out "s3://${FRONTEND_BUCKET}" --delete --region "${AWS_REGION}"
+      '''
     }
+  }
 
     stage('Invalidate CloudFront') {
       steps {
