@@ -1,8 +1,11 @@
 .nav-links {
   display: flex;
   gap: 20px;
-  margin-right: 60px;
+  margin-right: 0;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
+  min-width: 0;
 }
 
 .nav-links a {
@@ -22,18 +25,22 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  margin-left: 60px;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 0;
+  padding: 0 60px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .brand-logo {
-  width: 150px;
-  height: 150px;
+  width: clamp(72px, 18vw, 150px);
+  height: clamp(72px, 18vw, 150px);
   object-fit: contain;
 }
 
@@ -80,8 +87,10 @@
 }
 
 .title {
-  font-size: 2.5em;
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
   color: #007bff;
+  overflow-wrap: anywhere;
 }
 
 .get-started {
@@ -1424,6 +1433,17 @@
 }
 
 @media (max-width: 980px) {
+  .header {
+    align-items: flex-start;
+    padding: 0 24px;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
   .get-started {
     flex-direction: column;
     align-items: flex-start;
