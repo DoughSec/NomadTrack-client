@@ -16,6 +16,7 @@ type TripPhotoResponse = {
 }
 
 const BASE_URL = API_BASE_URL
+const API_ORIGIN = BASE_URL.replace(/\/nomadTrack$/i, '')
 
 const normalizeToken = (tokenValue: string | null | undefined): string => {
   if (!tokenValue || typeof tokenValue !== 'string') return ''
@@ -39,7 +40,7 @@ export function useImageUpload() {
     const uploadedUrls = await Promise.all(
       files.map(async (file) => {
         // 1) Request presigned URL
-        const presignResponse = await fetch(`${BASE_URL}/uploads/presign`, {
+        const presignResponse = await fetch(`${API_ORIGIN}/uploads/presign`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
