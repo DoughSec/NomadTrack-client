@@ -40,12 +40,11 @@ pipeline {
   }
 
   stage('Build Frontend') {
-    steps {
-      sh '''
-        export REACT_APP_API_URL="${API_URL}"
-        export NEXT_PUBLIC_API_URL="${API_URL}"
-        npm run build
-      '''
+  steps {
+    sh '''
+      export VITE_API_URL="${API_URL}"
+      npm run build
+    '''
     }
   }
 
