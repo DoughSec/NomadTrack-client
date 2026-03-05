@@ -29,9 +29,7 @@ export default function Register(props) {
             if (response.ok) {
                 const token = normalizeToken(data.token || data.accessToken || data.jwt || data.jwtToken);
                 if (!token) {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("role");
-                    setError("Registration succeeded but no token was returned.");
+                    navigate("/login");
                     return;
                 }
                 localStorage.setItem("token", token);
