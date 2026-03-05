@@ -95,7 +95,7 @@ export function useImageUpload() {
     for (let index = 0; index < uploadedUrls.length; index += 1) {
       const url = uploadedUrls[index]
       const response = await fetch(
-        `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(normalizedTripId)}/photos`,
+        `${BASE_URL}/trips/${encodeURIComponent(normalizedTripId)}/photos`,
         {
           method: 'POST',
           headers: {
@@ -128,7 +128,7 @@ export function useImageUpload() {
 
     const authToken = normalizeToken(localStorage.getItem('token'))
     const response = await fetch(
-      `${BASE_URL}/nomadTrack/trips/photos/${encodeURIComponent(normalizedPhotoId)}`,
+      `${BASE_URL}/trips/photos/${encodeURIComponent(normalizedPhotoId)}`,
       {
         method: 'DELETE',
         headers: {
@@ -145,3 +145,4 @@ export function useImageUpload() {
 
   return { uploadImages, uploadAndPersistTripPhotos, deletePersistedTripPhoto }
 }
+
