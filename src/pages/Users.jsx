@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Header from "../component/Header";
 import Footer from "../component/Footer";
 import { getRoleFromToken, isAdminRole, normalizeToken } from "../lib/auth";
+import API_BASE_URL from "../lib/apiBaseUrl";
 
-const BASE_URL = process.env.REACT_APP_API_URL;
+const BASE_URL = API_BASE_URL;
 const USERS_URL = `${BASE_URL}/nomadTrack/users`;
 
 const parseApiResponse = async (response) => {

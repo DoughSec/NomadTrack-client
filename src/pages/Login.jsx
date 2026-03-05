@@ -3,10 +3,10 @@ import Header from "../component/Header";
 import Footer from "../component/Footer";
 import { Link, useNavigate } from "react-router-dom";
 import { getRoleFromToken, normalizeToken } from "../lib/auth";
+import API_BASE_URL from "../lib/apiBaseUrl";
 
 export default function Login(props) {
-    const BASE_URL = process.env.REACT_APP_API_URL;
-    const url = `${BASE_URL}/nomadTrack/auth/login`;
+    const url = `${API_BASE_URL}/nomadTrack/auth/login`;
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
