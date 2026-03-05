@@ -6,7 +6,7 @@ import { getRoleFromToken, normalizeToken } from "../lib/auth";
 import API_BASE_URL from "../lib/apiBaseUrl";
 
 export default function Login(props) {
-    const url = `${API_BASE_URL}/nomadTrack/auth/login`;
+    const url = `${API_BASE_URL}/auth/login`;
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -66,7 +66,7 @@ export default function Login(props) {
                         />
                         <button type="submit">Login</button>
                         <p>
-                            Don't have an account? <Link to="/nomadTrack/auth/register"> Register</Link> here
+                            Don't have an account? <Link to="/register"> Register</Link> here
                         </p>
                     </form>
                 </div>
@@ -76,3 +76,4 @@ export default function Login(props) {
     );
 
 }
+

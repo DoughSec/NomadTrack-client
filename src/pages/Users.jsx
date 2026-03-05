@@ -5,7 +5,7 @@ import { getRoleFromToken, isAdminRole, normalizeToken } from "../lib/auth";
 import API_BASE_URL from "../lib/apiBaseUrl";
 
 const BASE_URL = API_BASE_URL;
-const USERS_URL = `${BASE_URL}/nomadTrack/users`;
+const USERS_URL = `${BASE_URL}/users`;
 
 const parseApiResponse = async (response) => {
     const rawText = await response.text();
@@ -216,3 +216,4 @@ export default function Users({ isAuthenticated, setIsAuthenticated }) {
         </div>
     );
 }
+

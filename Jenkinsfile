@@ -10,7 +10,7 @@ pipeline {
     AWS_REGION                 = 'us-east-2'
     FRONTEND_BUCKET            = 'nomadtrack-frontend-906ea42d'
     CLOUDFRONT_DISTRIBUTION_ID = 'E3CW1WFJSXVDH5'
-    API_URL = 'https://api.nomadtrack.net'
+    API_URL = 'https://api.nomadtrack.net/nomadTrack'
   }
 
   stages {

@@ -6,7 +6,7 @@ import { getRoleFromToken, normalizeToken } from "../lib/auth";
 import API_BASE_URL from "../lib/apiBaseUrl";
 
 export default function Register(props) {
-    const url = `${API_BASE_URL}/nomadTrack/auth/register`;
+    const url = `${API_BASE_URL}/auth/register`;
     const navigate = useNavigate();
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");

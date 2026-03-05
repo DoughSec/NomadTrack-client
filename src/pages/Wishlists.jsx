@@ -109,7 +109,7 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         setError("");
         setIsFiltered(false);
 
-        const { data, message } = await fetchWishlists(`${BASE_URL}/nomadTrack/wishlists`);
+        const { data, message } = await fetchWishlists(`${BASE_URL}/wishlists`);
         if (data == null) {
             setError(message || "Could not load wishlist dreams right now.");
             setWishlistItems([]);
@@ -135,7 +135,7 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         setError("");
         setIsFiltered(true);
 
-        const { data, message } = await fetchWishlists(`${BASE_URL}/nomadTrack/wishlists/${encodeURIComponent(searchValue)}`);
+        const { data, message } = await fetchWishlists(`${BASE_URL}/wishlists/${encodeURIComponent(searchValue)}`);
         if (data == null) {
             setError(message || "Search failed for that country.");
             setWishlistItems([]);
@@ -167,7 +167,7 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         setCreateError("");
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
-            const response = await fetch(`${BASE_URL}/nomadTrack/wishlists`, {
+            const response = await fetch(`${BASE_URL}/wishlists`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -213,7 +213,7 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
-            const response = await fetch(`${BASE_URL}/nomadTrack/wishlists/${encodeURIComponent(wishlistId)}/complete`, {
+            const response = await fetch(`${BASE_URL}/wishlists/${encodeURIComponent(wishlistId)}/complete`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -245,11 +245,11 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
 
             if (isFiltered && targetCountry.trim()) {
                 const { data: refreshed } = await fetchWishlists(
-                    `${BASE_URL}/nomadTrack/wishlists/${encodeURIComponent(targetCountry.trim())}`
+                    `${BASE_URL}/wishlists/${encodeURIComponent(targetCountry.trim())}`
                 );
                 if (refreshed) setWishlistItems(sortWishlists(refreshed));
             } else {
-                const { data: refreshed } = await fetchWishlists(`${BASE_URL}/nomadTrack/wishlists`);
+                const { data: refreshed } = await fetchWishlists(`${BASE_URL}/wishlists`);
                 if (refreshed) setWishlistItems(sortWishlists(refreshed));
             }
         } catch {
@@ -294,7 +294,7 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         setWishlistActionError("");
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
-            const response = await fetch(`${BASE_URL}/nomadTrack/wishlists/${encodeURIComponent(wishlistId)}`, {
+            const response = await fetch(`${BASE_URL}/wishlists/${encodeURIComponent(wishlistId)}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -334,7 +334,7 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         setWishlistActionError("");
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
-            const response = await fetch(`${BASE_URL}/nomadTrack/wishlists/${encodeURIComponent(wishlistId)}`, {
+            const response = await fetch(`${BASE_URL}/wishlists/${encodeURIComponent(wishlistId)}`, {
                 method: "DELETE",
                 headers: {
                     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -551,3 +551,4 @@ export default function Wishlists({ isAuthenticated, setIsAuthenticated }) {
         </div>
     );
 }
+

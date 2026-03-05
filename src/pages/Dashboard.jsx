@@ -5,12 +5,12 @@ import { useImageUpload } from "../services/useImageUploads";
 import API_BASE_URL from "../lib/apiBaseUrl";
 
 const BASE_URL = API_BASE_URL;
-const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
-const FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows/following`;
-const FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows/followers`;
-const USER_FOLLOWING_URL = `${BASE_URL}/nomadTrack/follows`;
-const USER_FOLLOWERS_URL = `${BASE_URL}/nomadTrack/follows`;
-const USER_TRIPS_URL = `${BASE_URL}/nomadTrack/trips/user`;
+const AUTH_ME_URL = `${BASE_URL}/auth/me`;
+const FOLLOWING_URL = `${BASE_URL}/follows/following`;
+const FOLLOWERS_URL = `${BASE_URL}/follows/followers`;
+const USER_FOLLOWING_URL = `${BASE_URL}/follows`;
+const USER_FOLLOWERS_URL = `${BASE_URL}/follows`;
+const USER_TRIPS_URL = `${BASE_URL}/trips/user`;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
     return tokenValue.replace(/^Bearer\s+/i, "").trim();
@@ -336,7 +336,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const response = await fetch(
-                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(normalizedTripId)}/likes`,
+                `${BASE_URL}/trips/${encodeURIComponent(normalizedTripId)}/likes`,
                 {
                     headers: {
                         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -390,7 +390,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const response = await fetch(
-                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(normalizedTripId)}/comments`,
+                `${BASE_URL}/trips/${encodeURIComponent(normalizedTripId)}/comments`,
                 {
                     headers: {
                         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -423,7 +423,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const response = await fetch(
-                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/comments`,
+                `${BASE_URL}/trips/${encodeURIComponent(tripId)}/comments`,
                 {
                     method: "POST",
                     headers: {
@@ -488,7 +488,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
             for (const method of methodsToTry) {
                 response = await fetch(
-                    `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`,
+                    `${BASE_URL}/trips/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`,
                     {
                         method,
                         headers: {
@@ -527,7 +527,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const response = await fetch(
-                `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`,
+                `${BASE_URL}/trips/${encodeURIComponent(tripId)}/comments/${encodeURIComponent(commentId)}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -572,7 +572,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                     return;
                 }
                 response = await fetch(
-                    `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/likes/${encodeURIComponent(selectedTrip.likeId)}`,
+                    `${BASE_URL}/trips/${encodeURIComponent(tripId)}/likes/${encodeURIComponent(selectedTrip.likeId)}`,
                     {
                         method: "DELETE",
                         headers: {
@@ -582,7 +582,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
                 );
             } else {
                 response = await fetch(
-                    `${BASE_URL}/nomadTrack/trips/${encodeURIComponent(tripId)}/likes`,
+                    `${BASE_URL}/trips/${encodeURIComponent(tripId)}/likes`,
                     {
                         method: "POST",
                         headers: {
@@ -857,7 +857,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
 
         try {
             const authToken = normalizeToken(localStorage.getItem("token"));
-            const response = await fetch(`${BASE_URL}/nomadTrack/users/search/${encodeURIComponent(searchValue)}`, {
+            const response = await fetch(`${BASE_URL}/users/search/${encodeURIComponent(searchValue)}`, {
                 headers: {
                     "Content-Type": "application/json",
                     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -952,7 +952,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         setSearchError("");
 
         try {
-            const response = await fetch(`${BASE_URL}/nomadTrack/follows/${targetUserId}`, {
+            const response = await fetch(`${BASE_URL}/follows/${targetUserId}`, {
                 method: isCurrentlyFollowing ? "DELETE" : "POST",
                 headers: {
                     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -1580,3 +1580,4 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         </div>
     );
 }
+

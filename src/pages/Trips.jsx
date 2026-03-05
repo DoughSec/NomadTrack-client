@@ -6,8 +6,8 @@ import { useImageUpload } from "../services/useImageUploads";
 import API_BASE_URL from "../lib/apiBaseUrl";
 
 const BASE_URL = API_BASE_URL;
-const TRIPS_BASE_URL = `${BASE_URL}/nomadTrack/trips`;
-const AUTH_ME_URL = `${BASE_URL}/nomadTrack/auth/me`;
+const TRIPS_BASE_URL = `${BASE_URL}/trips`;
+const AUTH_ME_URL = `${BASE_URL}/auth/me`;
 const normalizeToken = (tokenValue) => {
     if (!tokenValue || typeof tokenValue !== "string") return "";
     return tokenValue.replace(/^Bearer\s+/i, "").trim();
@@ -1254,3 +1254,4 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         </div>
     );
 }
+
