@@ -11,7 +11,7 @@ pipeline {
     FRONTEND_BUCKET            = 'nomadtrack-frontend-906ea42d'
     CLOUDFRONT_DISTRIBUTION_ID = 'E3CW1WFJSXVDH5'
     NODE_ENV = 'production'
-    API_URL = https://api.nomadtrack.net
+    API_URL = 'https://api.nomadtrack.net'
   }
 
   stages {
