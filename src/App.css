@@ -6,6 +6,8 @@
   justify-content: flex-end;
   row-gap: 10px;
   min-width: 0;
+  position: relative;
+  z-index: 12;
 }
 
 .nav-links a {
@@ -29,6 +31,8 @@
   gap: 12px 24px;
   margin: 0;
   padding: 0 60px;
+  position: relative;
+  z-index: 12;
 }
 
 .brand {
@@ -102,6 +106,8 @@
   gap: 32px;
   height: 50vh;
   margin: 0 60px;
+  position: relative;
+  z-index: 1;
 }
 
 .get-started-copy {
