@@ -104,7 +104,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 32px;
-  height: 50vh;
+  min-height: clamp(460px, 60vh, 760px);
   margin: 0 60px;
   position: relative;
   z-index: 1;
@@ -123,17 +123,22 @@
 }
 
 .get-started-visual {
+  --hero-globe-gap: clamp(16px, 2.2vh, 28px);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40%;
-  min-width: 320px;
+  align-self: stretch;
+  width: min(40%, 600px);
+  min-width: 300px;
+  padding-block: var(--hero-globe-gap);
+  box-sizing: border-box;
 }
 
 .hero-globe {
-  width: clamp(300px, 30vw, 560px);
-  max-width: 100%;
+  width: min(100%, min(50dvh, 540px));
+  max-width: min(100%, 540px);
   height: auto;
+  max-height: calc(100% - (2 * var(--hero-globe-gap)));
   aspect-ratio: 1 / 1;
   filter: drop-shadow(0 0 24px rgba(80, 185, 255, 0.35)) drop-shadow(0 0 52px rgba(255, 95, 115, 0.18));
 }
