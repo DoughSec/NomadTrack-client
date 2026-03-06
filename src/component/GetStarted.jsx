@@ -28,8 +28,8 @@ export default function GetStarted() {
 
             <div className="get-started-visual">
                 <Globe
-                    width={420}
-                    height={420}
+                    width="auto"
+                    height="auto"
                     primaryColor="#50b9ff"
                     neutralColor="#9cd9ff"
                     atmosphereColor="rgba(80, 185, 255, 0.42)"
