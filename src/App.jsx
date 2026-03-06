@@ -30,7 +30,7 @@ function App() {
         />
         <Route
           path="/trips"
-          element={isAuthenticated ? <Trips isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" replace />}
+          element={!isAuthenticated ? <Trips isAuthenticated={!isAuthenticated} setIsAuthenticated={!setIsAuthenticated} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/wishlists"

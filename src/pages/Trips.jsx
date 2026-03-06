@@ -864,17 +864,44 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
     };
 
     const selectedPhotoItems = extractPhotoItems(selectedTrip);
+    const uniqueCountryCount = new Set(
+        tripList
+            .map((trip) => (trip?.country || "").trim().toLowerCase())
+            .filter(Boolean)
+    ).size;
+    const uniqueCityCount = new Set(
+        tripList
+            .map((trip) => (trip?.city || "").trim().toLowerCase())
+            .filter(Boolean)
+    ).size;
 
     return (
         <div className="auth-page">
             <Header isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
             <main className="auth-main auth-main-top trips-main-left">
                 {!selectedTrip && (
-                    <div className="trips-list-layout">
-                        <div className="login-container trips-search-container trips-search-container-wide">
-                            <h2 className="trips-search-title section-split-heading">
-                                <span className="heading-blue">My</span><span className="heading-white">Trips</span>
-                            </h2>
+                    <div className="trips-list-layout trips-list-layout-fun">
+                        <div className="login-container trips-search-container trips-search-container-wide trips-explorer-panel">
+                            <div className="trips-explorer-header">
+                                <h2 className="trips-search-title section-split-heading">
+                                    <span className="heading-blue">My</span><span className="heading-white">Trips</span>
+                                </h2>
+                                <p className="trips-explorer-subtitle">Pick an adventure or launch a new one.</p>
+                                <div className="trips-kpi-row">
+                                    <div className="trips-kpi-pill">
+                                        <span className="trips-kpi-value">{tripList.length}</span>
+                                        <span className="trips-kpi-label">Trips</span>
+                                    </div>
+                                    <div className="trips-kpi-pill">
+                                        <span className="trips-kpi-value">{uniqueCountryCount}</span>
+                                        <span className="trips-kpi-label">Countries</span>
+                                    </div>
+                                    <div className="trips-kpi-pill">
+                                        <span className="trips-kpi-value">{uniqueCityCount}</span>
+                                        <span className="trips-kpi-label">Cities</span>
+                                    </div>
+                                </div>
+                            </div>
                             <form className="trips-search-form" onSubmit={handleSearch}>
                                 <input
                                     type="text"
@@ -888,6 +915,10 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                                 {loading ? "Loading..." : "Show All Trips"}
                             </button>
                             {error && <p className="error">{error}</p>}
+                            <div className="trips-list-header">
+                                <p className="trips-list-header-title">Adventure List</p>
+                                <p className="trips-list-header-count">{tripList.length} loaded</p>
+                            </div>
                             <div className="trips-list trips-list-tall">
                                 {!loading && tripList.length === 0 && <p>No trips available.</p>}
                                 {tripList.map((trip) => (
@@ -904,8 +935,11 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                             </div>
                         </div>
 
-                        <div className="login-container trips-add-section">
-                            <h3 className="trips-add-title">Add A Trip</h3>
+                        <div className="login-container trips-add-section trips-add-section-fun">
+                            <div className="trips-add-title-wrap">
+                                <h3 className="trips-add-title">Add A Trip</h3>
+                                <p className="trips-add-subtitle">Create your next destination card.</p>
+                            </div>
                             <form className="trips-add-form" onSubmit={handleAddTrip}>
                                 <input
                                     type="text"
