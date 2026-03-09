@@ -1,0 +1,9 @@
+com.nomadtrack.nomadtrackserver
+com.nomadtrack.nomadtrackserver.controller
+com.nomadtrack.nomadtrackserver.exception
+com.nomadtrack.nomadtrackserver.model
+com.nomadtrack.nomadtrackserver.model.dto
+com.nomadtrack.nomadtrackserver.repository
+com.nomadtrack.nomadtrackserver.security
+com.nomadtrack.nomadtrackserver.service
+com.nomadtrack.nomadtrackserver.test
