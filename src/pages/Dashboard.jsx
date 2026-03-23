@@ -216,7 +216,30 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
     const extractPhotoUrl = (photo) => {
         if (!photo) return null;
         if (typeof photo === "string") return photo;
-        return photo.url ?? photo.photoUrl ?? photo.imageUrl ?? photo.src ?? null;
+        return (
+            photo.url ??
+            photo.photoUrl ??
+            photo.imageUrl ??
+            photo.src ??
+            photo.fileUrl ??
+            photo.tripPhotoUrl ??
+            photo.photoURL ??
+            photo.path ??
+            photo.image ??
+            photo.location ??
+            null
+        );
+    };
+
+    const extractPhotosFromResponse = (data) => {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.photos)) return data.photos;
+        if (Array.isArray(data?.tripPhotos)) return data.tripPhotos;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.content)) return data.content;
+        if (data?.photo && typeof data.photo === "object") return [data.photo];
+        return [];
     };
 
     const normalizeCommentId = (comment) =>
@@ -313,6 +336,7 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         setSelectedTrip(trip);
         const tripId = normalizeId(trip?.id);
         if (tripId) {
+            loadTripPhotos(tripId);
             loadTripLikes(tripId);
             loadTripComments(tripId);
         }
@@ -410,6 +434,55 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
             setTripComments([]);
         } finally {
             setTripCommentsLoading(false);
+        }
+    };
+
+    const loadTripPhotos = async (tripId) => {
+        const normalizedTripId = normalizeId(tripId);
+        if (!normalizedTripId) return;
+        const authToken = normalizeToken(localStorage.getItem("token"));
+
+        try {
+            const response = await fetch(
+                `${BASE_URL}/trips/${encodeURIComponent(normalizedTripId)}/photos/public`,
+                {
+                    headers: {
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                    },
+                }
+            );
+            const data = await parseApiResponse(response);
+            if (!response.ok) return;
+
+            const normalizedPhotos = extractPhotosFromResponse(data)
+                .map((photo) => {
+                    if (typeof photo === "string") return photo;
+                    if (!photo || typeof photo !== "object") return null;
+                    const url = extractPhotoUrl(photo);
+                    return url ? { ...photo, url } : null;
+                })
+                .filter(Boolean);
+
+            setSelectedTrip((prev) => {
+                if (!prev || normalizeId(prev.id) !== normalizedTripId) return prev;
+                return {
+                    ...prev,
+                    tripPhotos: normalizedPhotos,
+                };
+            });
+
+            setSelectedUserTrips((prev) =>
+                prev.map((trip) =>
+                    normalizeId(trip.id) === normalizedTripId
+                        ? {
+                            ...trip,
+                            tripPhotos: normalizedPhotos,
+                        }
+                        : trip
+                )
+            );
+        } catch {
+            // Keep existing trip photo data if this request fails.
         }
     };
 
@@ -1581,4 +1654,3 @@ export default function Dashboard({ isAuthenticated, setIsAuthenticated }) {
         </div>
     );
 }
-

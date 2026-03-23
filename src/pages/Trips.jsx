@@ -15,6 +15,7 @@ const normalizeToken = (tokenValue) => {
 
 export default function Trips({ isAuthenticated, setIsAuthenticated }) {
     const { uploadAndPersistTripPhotos, deletePersistedTripPhoto } = useImageUpload();
+    const [isCompactViewport, setIsCompactViewport] = useState(false);
     const [countryName, setCountryName] = useState("");
     const [newTripDraft, setNewTripDraft] = useState({
         title: "",
@@ -568,6 +569,16 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         loadCurrentUser();
     }, []);
 
+    useEffect(() => {
+        const updateViewportMode = () => {
+            setIsCompactViewport(window.innerWidth <= 640);
+        };
+
+        updateViewportMode();
+        window.addEventListener("resize", updateViewportMode);
+        return () => window.removeEventListener("resize", updateViewportMode);
+    }, []);
+
     const handleSearch = async (e) => {
         e.preventDefault();
         const searchValue = countryName.trim();
@@ -864,6 +875,20 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
     };
 
     const selectedPhotoItems = extractPhotoItems(selectedTrip);
+    const tripPhotoTransformStyles = isCompactViewport
+        ? [
+            "rotate(-6deg) translate(-78px)",
+            "rotate(-2deg) translate(-26px)",
+            "rotate(3deg) translate(26px)",
+            "rotate(6deg) translate(78px)",
+        ]
+        : [
+            "rotate(6deg) translate(-190px)",
+            "rotate(2deg) translate(-95px)",
+            "rotate(-3deg)",
+            "rotate(3deg) translate(95px)",
+            "rotate(-6deg) translate(190px)",
+        ];
     const uniqueCountryCount = new Set(
         tripList
             .map((trip) => (trip?.country || "").trim().toLowerCase())
@@ -919,7 +944,7 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                                 <p className="trips-list-header-title">Adventure List</p>
                                 <p className="trips-list-header-count">{tripList.length} loaded</p>
                             </div>
-                            <div className="trips-list trips-list-tall">
+                            <div className="trips-list trips-list-tall trips-list-scrollable">
                                 {!loading && tripList.length === 0 && <p>No trips available.</p>}
                                 {tripList.map((trip) => (
                                     <button
@@ -1167,19 +1192,13 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
                                     removingImageIndex={selectedPhotoItems.findIndex(
                                         (photo) => photo.photoId != null && String(photo.photoId) === String(photoDeleteLoadingId)
                                     )}
-                                    containerWidth={420}
-                                    containerHeight={300}
+                                    containerWidth={isCompactViewport ? 280 : 420}
+                                    containerHeight={isCompactViewport ? 220 : 300}
                                     animationDelay={0.8}
                                     animationStagger={0.08}
                                     easeType="elastic.out(1, 0.5)"
-                                    transformStyles={[
-                                        "rotate(6deg) translate(-190px)",
-                                        "rotate(2deg) translate(-95px)",
-                                        "rotate(-3deg)",
-                                        "rotate(3deg) translate(95px)",
-                                        "rotate(-6deg) translate(190px)",
-                                    ]}
-                                    enableHover={false}
+                                    transformStyles={tripPhotoTransformStyles}
+                                    enableHover={!isCompactViewport}
                                 />
                             ) : (
                                 <p className="trips-no-photos">No trip photos available.</p>
@@ -1288,4 +1307,3 @@ export default function Trips({ isAuthenticated, setIsAuthenticated }) {
         </div>
     );
 }
-
