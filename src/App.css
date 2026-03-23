@@ -469,6 +469,27 @@
   max-height: 460px;
 }
 
+.trips-list-scrollable {
+  min-height: 460px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(46, 158, 247, 0.78) rgba(255, 255, 255, 0.08);
+}
+
+.trips-list-scrollable::-webkit-scrollbar {
+  width: 10px;
+}
+
+.trips-list-scrollable::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.trips-list-scrollable::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(46, 158, 247, 0.9), rgba(29, 111, 200, 0.85));
+  border-radius: 999px;
+}
+
 .trip-list-item {
   width: 100%;
   text-align: left;
@@ -554,6 +575,7 @@
 .trips-photos-panel-compact {
   min-height: 460px;
   padding: 20px;
+  overflow: hidden;
 }
 
 .trips-activity-panel {
@@ -1683,6 +1705,34 @@
 
   .trips-photos-panel {
     min-height: 360px;
+  }
+
+  .trips-list-scrollable {
+    min-height: 380px;
+    max-height: 52vh;
+  }
+
+  .trips-photos-panel-compact {
+    min-height: 420px;
+    padding: 18px 12px 20px;
+  }
+
+  .trips-bounce-cards {
+    width: min(100%, 280px);
+  }
+
+  .trips-bounce-cards .card {
+    width: 136px;
+    border-width: 3px;
+    border-radius: 20px;
+  }
+
+  .trip-photo-upload-controls {
+    align-items: stretch;
+  }
+
+  .trip-photo-upload-input {
+    min-width: 0;
   }
 
   .trips-activity-panel {
