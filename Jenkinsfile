@@ -10,7 +10,9 @@ pipeline {
     AWS_REGION                 = 'us-east-2'
     FRONTEND_BUCKET            = 'nomadtrack-frontend-906ea42d'
     CLOUDFRONT_DISTRIBUTION_ID = 'E3CW1WFJSXVDH5'
-    API_URL = 'https://api.nomadtrack.net/nomadTrack'
+    API_URL                    = 'https://api.nomadtrack.net/nomadTrack'
+    VITE_AWS_ACCESS_KEY_ID     = credentials('VITE_AWS_ACCESS_KEY_ID')
+    VITE_AWS_SECRET_ACCESS_KEY = credentials('VITE_AWS_SECRET_ACCESS_KEY')
   }
 
   stages {
@@ -43,6 +45,14 @@ pipeline {
   steps {
     sh '''
       export VITE_API_URL="${API_URL}"
+      export VITE_AWS_REGION="us-east-1"
+      export VITE_AWS_LEX_BOT_ID="YNAQIVMX8J"
+      export VITE_AWS_LEX_BOT_ALIAS_ID="TSTALIASID"
+      export VITE_AWS_LEX_LOCALE_ID="en_US"
+      export VITE_AWS_BEDROCK_AGENT_ID="DK4SQHFIAE"
+      export VITE_AWS_BEDROCK_AGENT_ALIAS_ID="V9NTEBXSZY"
+      export VITE_AWS_ACCESS_KEY_ID="${VITE_AWS_ACCESS_KEY_ID}"
+      export VITE_AWS_SECRET_ACCESS_KEY="${VITE_AWS_SECRET_ACCESS_KEY}"
       npm run build
     '''
     }
