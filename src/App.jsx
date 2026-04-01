@@ -1,4 +1,5 @@
 import WelcomePage from './pages/WelcomePage';
+import LexChatbot from './component/LexChatbot';
 import Dashboard from './pages/Dashboard';
 import Trips from './pages/Trips';
 import Login from './pages/Login';
@@ -58,6 +59,7 @@ function App() {
         />
       </Routes>
 
+      {isAuthenticated && <LexChatbot />}
     </div >
   );
 }
