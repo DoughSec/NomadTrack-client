@@ -8,11 +8,24 @@ import Wishlists from './pages/Wishlists';
 import Users from './pages/Users';
 import './App.css';
 import Hyperspeed from './bits/HyperSpeed';
-import { Navigate, Route, Routes } from "react-router-dom";
-import { useState } from 'react';
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect, useState } from 'react';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("token"));
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window.gtag !== 'function') {
+      return;
+    }
+
+    window.gtag('event', 'page_view', {
+      page_path: `${location.pathname}${location.search}${location.hash}`,
+      page_title: document.title,
+      page_location: window.location.href,
+    });
+  }, [location]);
 
   return (
     <div className="App" >
