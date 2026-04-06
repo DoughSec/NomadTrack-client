@@ -18,6 +18,7 @@ export default function Nav({ isAuthenticated, setIsAuthenticated }) {
             {isAuthenticated && <Link to="/Dashboard">Dashboard</Link>}
             {isAuthenticated && <Link to="/trips">Trips</Link>}
             {isAuthenticated && <Link to="/wishlists">Wishlists</Link>}
+            {isAuthenticated && <Link to="/recommendations">Get Recommendations</Link>}
             {isAuthenticated && isAdminRole(userRole) && <Link to="/users">Users</Link>}
             {!isAuthenticated && <Link to="/login">Login</Link>}
             {!isAuthenticated && <Link to="/nomadTrack/auth/register">Register</Link>}
