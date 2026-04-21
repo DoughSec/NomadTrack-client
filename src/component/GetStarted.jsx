@@ -17,8 +17,16 @@ export default function GetStarted() {
                 </h1>
                 <p className="get-started-description">
                     Log your travels, visualize your journey, and connect with
-                    other digital nomads in real time.
+                    other digital nomads in real time. Keep track of your upcoming
+                    trips, your goals/bucketlist items, and stay connected with other nomads around the world.
+
                 </p>
+                <p className="get-started-description">
+                    Post different trips with images and comment on other nomads' journeys as well as follow them
+                    with our social features. Use our AI engine to get recommendations and insights for your travels
+                    or have AI log a trip/wishlist for you.
+                </p>
+
 
                 <div className="get-started-buttons">
                     <button className="button" onClick={handleGetStarted}>Get Started</button>
